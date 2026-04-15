@@ -5,14 +5,23 @@ import { Handle, Position, NodeProps, Node } from '@xyflow/react';
 import { Person } from '../../lib/types';
 import { ChevronLeft } from 'lucide-react';
 
-export type FamilyMemberNode = Node<{ person: Person }, 'familyMember'>;
+export type FamilyMemberNode = Node<{ 
+  person: Person; 
+  isMarried?: boolean; 
+  parentCount?: number; 
+}, 'familyMember'>;
 
 export const FamilyNode = memo(({ data }: NodeProps<FamilyMemberNode>) => {
   const { person } = data;
-  
+  const isMarried = data.isMarried;
+  const parentCount = (data.parentCount) || 0;
+
   const isMale = person.gender === 'male';
-  const colorClass = isMale 
-    ? 'bg-blue-100 text-blue-900 border-blue-200' 
+  const currentYear = new Date().getFullYear();
+  const isAdult = person.isAlive ? (currentYear - person.birthYear >= 18) : true;
+
+  const colorClass = isMale
+    ? 'bg-blue-100 text-blue-900 border-blue-200'
     : 'bg-pink-100 text-rose-900 border-pink-200';
   const handleColor = isMale ? '!bg-blue-400' : '!bg-pink-400';
 
@@ -24,25 +33,30 @@ export const FamilyNode = memo(({ data }: NodeProps<FamilyMemberNode>) => {
     .join('')
     .toUpperCase();
 
-  const dateText = person.isAlive 
-    ? `${person.birthYear}` 
+  const dateText = person.isAlive
+    ? `${person.birthYear}`
     : `${person.deathYear} - ${person.birthYear}`;
 
   const handleAlert = () => {
-      window.alert(`פעולה זו פותחת את הכרטיס של: ${person.fullName}`);
+    window.alert(`פעולה זו פותחת את הכרטיס של: ${person.fullName}`);
   };
 
+  // תנאים להצגת נקודות משיכה
+  const showParentTop = parentCount < 2;
+  const showSpouseRight = !isMale && !isMarried && isAdult;
+  const showSpouseLeft = isMale && !isMarried && isAdult;
+
   return (
-    <div 
+    <div
       className={`relative w-[280px] h-[90px] rounded-2xl border bg-white flex flex-row items-center p-3 shadow-md hover:shadow-lg transition-transform ${colorClass.replace(/bg-.* border-.*/, 'border-slate-200')}`}
       dir="ltr"
     >
       {/* Side color accent & Photo container */}
       <div className={`relative h-[65px] w-[65px] rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm mr-4 ${colorClass.split(' ')[0]}`}>
         {person.photoUrl ? (
-          <img 
-            src={person.photoUrl} 
-            alt={person.fullName} 
+          <img
+            src={person.photoUrl}
+            alt={person.fullName}
             className="w-full h-full object-cover"
           />
         ) : (
@@ -60,28 +74,51 @@ export const FamilyNode = memo(({ data }: NodeProps<FamilyMemberNode>) => {
         </span>
       </div>
 
-      <button 
+      <button
         onClick={handleAlert}
         className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors ml-2"
       >
         <ChevronLeft className="w-5 h-5" />
       </button>
 
-      {/* UNIQUE HANDLES TO AVOID REACT FLOW CONFLICTS */}
-      
-      {/* Top Target - From Parent/Union */}
-      <Handle type="target" position={Position.Top} id="top-target" className="opacity-0" />
-      
-      {/* Bottom Source - To Children/Union */}
-      <Handle type="source" position={Position.Bottom} id="bottom-source" className="opacity-0 w-1 h-1" />
+      {/* === UNIQUE HANDLES FOR ROUTING (Invisible) === */}
 
-      {/* Right Side */}
+      <Handle type="target" position={Position.Top} id="top-target" className="opacity-0" />
+      <Handle type="source" position={Position.Bottom} id="bottom-source" className="opacity-0 w-1 h-1" />
       <Handle type="source" position={Position.Right} id="right-out" className="opacity-0" />
       <Handle type="target" position={Position.Right} id="right-in" className="opacity-0" />
-
-      {/* Left Side */}
       <Handle type="source" position={Position.Left} id="left-out" className="opacity-0" />
       <Handle type="target" position={Position.Left} id="left-in" className="opacity-0" />
+
+      {/* === VISIBLE BUBBLES FOR USER INTERACTION === */}
+
+      {/* Add Parent (Top) */}
+      {showParentTop && (
+        <Handle 
+          type="source" position={Position.Top} id="add-parent" 
+          onClick={(e) => { e.stopPropagation(); window.alert('(קליק) פעולה זו תפתח חלון הוספת: הורה לכרטיסייה!'); }}
+          className="w-4 h-4 !bg-slate-300 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10" 
+        />
+      )}
+
+      {/* Add Spouse Right (for Female) */}
+      {showSpouseRight && (
+        <Handle 
+          type="source" position={Position.Right} id="add-spouse-right" 
+          onClick={(e) => { e.stopPropagation(); window.alert('(קליק) פעולה זו תפתח חלון הוספת: בן/בת זוג!'); }}
+          className="w-4 h-4 !bg-blue-400 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10" 
+        />
+      )}
+
+      {/* Add Spouse Left (for Male) */}
+      {showSpouseLeft && (
+        <Handle 
+          type="source" position={Position.Left} id="add-spouse-left" 
+          onClick={(e) => { e.stopPropagation(); window.alert('(קליק) פעולה זו תפתח חלון הוספת: בן/בת זוג!'); }}
+          className="w-4 h-4 !bg-pink-400 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10" 
+        />
+      )}
+
     </div>
   );
 });
