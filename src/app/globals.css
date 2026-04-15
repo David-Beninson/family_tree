@@ -1,11 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-parchment: #fdfbf7;
+  --color-parchment: #f5efe6;
+  --color-parchment-dark: #e8dfd2;
   --color-wood-dark: #2c1e14;
   --color-wood-light: #433422;
   --color-accent-amber: #d4a373;
   --color-leaf-muted: #6b705c;
+  --color-bark-deep: #3b2507;
+  --color-bark-mid: #5c3a1a;
+  --color-bark-light: #7a4f2a;
+  --color-bud-green: #7cb342;
 }
 
 :root {
@@ -20,16 +25,52 @@ body {
   overflow: hidden;
 }
 
-/* React Flow customizations */
+/* ═══════════════════════════════════════════════════════
+   Parchment / Aged-Canvas Background
+   ═══════════════════════════════════════════════════════ */
+.parchment-canvas {
+  background-color: #f5efe6;
+  background-image:
+    /* Subtle vignette */
+    radial-gradient(ellipse at center, transparent 50%, rgba(44, 30, 20, 0.06) 100%),
+    /* Paper grain noise via SVG data URI */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+}
+
+/* ═══════════════════════════════════════════════════════
+   React Flow Overrides — Organic Connection Line
+   ═══════════════════════════════════════════════════════ */
 .react-flow__connection-path {
-  stroke: var(--color-wood-light);
-  stroke-width: 1.5;
-  opacity: 0.4;
+  stroke: #7a4f2a;
+  stroke-width: 4;
+  opacity: 0.5;
+  stroke-linecap: round;
+  stroke-dasharray: 10 6;
+  filter: url(#organicNoise);
 }
 
 .react-flow__edge-path {
-  stroke: #94a3b8;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  stroke: none;
+}
+
+/* Hide the default edge interaction area visual */
+.react-flow__edge-interaction {
+  stroke: transparent !important;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Handle styles — branch-tip aesthetics
+   ═══════════════════════════════════════════════════════ */
+.branch-handle {
+  background: transparent !important;
+  border: none !important;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+.branch-handle:hover {
+  transform: scale(1.4);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
