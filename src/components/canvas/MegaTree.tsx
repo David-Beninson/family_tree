@@ -53,8 +53,19 @@ const RootsNode = ({ data }: { data: any }) => {
 
 const UnionNode = ({ data }: { data: any }) => {
   const hasChildren = data?.hasChildren ?? false;
+  const partnerNames = data?.partnerNames ?? '';
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.alert(`פעולה זו תוסיף ילד/ה עבור: ${partnerNames}`);
+  };
+
   return (
-    <div style={{ position: 'relative', width: 20, height: 20, zIndex: 20 }}>
+    <div
+      onClick={handleClick}
+      title="לחץ להוספת ילד/ה"
+      style={{ position: 'relative', width: 20, height: 20, zIndex: 20, cursor: 'pointer' }}
+    >
       <Handle type="target" position={Position.Left} id="left-in" className="opacity-0" />
       <Handle type="target" position={Position.Right} id="right-in" className="opacity-0" />
       <Handle type="target" position={Position.Bottom} id="bottom-target" className="opacity-0" />

@@ -38,7 +38,7 @@ function buildInitialGraph(persons: Person[], unions: Union[]) {
   const positions: Record<string, { x: number, y: number }> = {};
   const Y_SPACING = -250;
   const CARD_W = 280;
-  const UNIT_W = 340;
+  const UNIT_W = 400;
   const subtreeWidths: Record<string, number> = {};
 
   const calculateWidth = (pId: string): number => {
@@ -66,8 +66,8 @@ function buildInitialGraph(persons: Person[], unions: Union[]) {
       const p2 = persons.find(p => p.id === u.partner2Id);
       let rightP = p1?.gender === 'male' ? p1 : p2;
       let leftP = p1?.gender === 'female' ? p1 : p2;
-      if (rightP) positions[rightP.id] = { x: centerX + 150 - (CARD_W / 2), y: level * Y_SPACING };
-      if (leftP) positions[leftP.id] = { x: centerX - 150 - (CARD_W / 2), y: level * Y_SPACING };
+      if (rightP) positions[rightP.id] = { x: centerX + 190 - (CARD_W / 2), y: level * Y_SPACING };
+      if (leftP) positions[leftP.id] = { x: centerX - 190 - (CARD_W / 2), y: level * Y_SPACING };
       if (children.length > 0) {
         let totalChildrenW = 0;
         children.forEach(c => { totalChildrenW += subtreeWidths[c.id] || UNIT_W; });
@@ -112,7 +112,11 @@ function buildInitialGraph(persons: Person[], unions: Union[]) {
     rfNodes.push({
       id: `union-hub-${u.id}`, type: 'union', position: { x: centerX - 10, y: centerY - 10 },
       width: 20, height: 20, // ⟵ מידות חובה
-      draggable: false, data: { hasChildren: children.length > 0, isDivorced }
+      draggable: false, data: {
+        hasChildren: children.length > 0,
+        isDivorced,
+        partnerNames: `${persons.find(p => p.id === u.partner1Id)?.fullName} ו-${persons.find(p => p.id === u.partner2Id)?.fullName}`
+      }
     });
 
     // ... (חלק ה-Edges נשאר בדיוק אותו דבר) ...
