@@ -13,10 +13,11 @@ const GroundNode = ({ data }: { data: any }) => {
     <div style={{
       width: width,
       height: 120,
-      backgroundImage: 'url(/ground-layer.png)',
+      backgroundImage: 'url(/ground_layer.png)',
       backgroundRepeat: 'repeat-x',
       backgroundSize: 'auto 100%',
-      filter: 'contrast(1.3) brightness(1.1)',
+      filter: 'brightness(1.5) contrast(1.5)',
+      mixBlendMode: 'multiply',
       maskImage: 'linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent)',
       WebkitMaskImage: 'linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent)',
     }} />
@@ -24,7 +25,6 @@ const GroundNode = ({ data }: { data: any }) => {
 };
 const RootsNode = ({ data }: { data: any }) => {
   const mass = data?.mass || 5;
-  const scaleX = Math.min(1.2, 0.9 + (mass * 0.01));
   return (
     <div style={{
       width: 1000,
@@ -32,27 +32,23 @@ const RootsNode = ({ data }: { data: any }) => {
       pointerEvents: 'none',
       mixBlendMode: 'multiply',
       display: 'flex',
-      alignItems: 'flex-end',
+      alignItems: 'flex-start',
       justifyContent: 'center',
-      maskImage: 'linear-gradient(to bottom, black 65%, transparent 95%)',
-      WebkitMaskImage: 'linear-gradient(to bottom, black 65%, transparent 95%)'
     }}>
-      <img src="/tree-core.png" alt="Roots" style={{
+      <img src="/trunk_main.png" alt="Roots" style={{
         width: '100%',
         maxHeight: '100%',
         objectFit: 'contain',
-        objectPosition: 'bottom center',
-        transform: `scaleX(${scaleX})`,
-        transformOrigin: 'bottom center',
-        filter: 'contrast(2.5) brightness(1.2) saturate(1.2)',
-        marginTop: '25px'
+        objectPosition: 'top center',
+        transformOrigin: 'top center',
+        marginTop: '-10px',
+        filter: 'brightness(1.5) contrast(1.5)'
       }} />
     </div>
   );
 };
 
 const UnionNode = ({ data }: { data: any }) => {
-  const hasChildren = data?.hasChildren ?? false;
   const partnerNames = data?.partnerNames ?? '';
 
   const handleClick = (e: React.MouseEvent) => {
@@ -64,13 +60,20 @@ const UnionNode = ({ data }: { data: any }) => {
     <div
       onClick={handleClick}
       title="לחץ להוספת ילד/ה"
-      style={{ position: 'relative', width: 20, height: 20, zIndex: 20, cursor: 'pointer' }}
+      style={{ position: 'relative', width: 24, height: 24, zIndex: 20, cursor: 'pointer' }}
     >
-      <Handle type="target" position={Position.Left} id="left-in" className="opacity-0" />
-      <Handle type="target" position={Position.Right} id="right-in" className="opacity-0" />
-      <Handle type="target" position={Position.Bottom} id="bottom-target" className="opacity-0" />
-      <Handle type="source" position={Position.Top} id="top-source" className="opacity-0" />
-      <svg width="20" height="20">{hasChildren ? <circle cx="10" cy="10" r="10" fill="#2c1606" /> : <ellipse cx="10" cy="10" rx="4" ry="3" fill="#5c3a1a" />}</svg>
+      <Handle type="target" position={Position.Left} id="left-in" style={{ opacity: 0, width: 1, height: 1 }} />
+      <Handle type="target" position={Position.Right} id="right-in" style={{ opacity: 0, width: 1, height: 1 }} />
+      <Handle type="target" position={Position.Bottom} id="bottom-target" style={{ opacity: 0, width: 1, height: 1 }} />
+      <Handle type="source" position={Position.Top} id="top-source" style={{ opacity: 0, width: 1, height: 1 }} />
+    </div>
+  );
+};
+
+const CrownNode = () => {
+  return (
+    <div style={{ position: 'relative', width: 20, height: 20, pointerEvents: 'none' }}>
+      <Handle type="source" position={Position.Top} id="top-source" style={{ opacity: 0, width: 1, height: 1 }} />
     </div>
   );
 };
@@ -94,7 +97,7 @@ export default function MegaTree() {
   }, [bounds]);
 
   const nodeTypes = useMemo(() => ({
-    familyMember: FamilyNode, union: UnionNode, rootsDecoration: RootsNode, ground: GroundNode
+    familyMember: FamilyNode, union: UnionNode, rootsDecoration: RootsNode, ground: GroundNode, crown: CrownNode
   }), []);
 
   const edgeTypes = useMemo(() => ({ family: FamilyEdge }), []);
@@ -122,6 +125,6 @@ export default function MegaTree() {
       >
         <Controls showInteractive={false} style={{ background: 'rgba(245, 239, 230, 0.9)' }} />
       </ReactFlow>
-    </div>
+    </div >
   );
 }

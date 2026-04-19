@@ -64,13 +64,9 @@ body {
 .branch-handle {
   background: transparent !important;
   border: none !important;
-  width: 18px !important;
-  height: 18px !important;
+  width: 40px !important;
+  height: 40px !important;
   min-width: 0 !important;
   min-height: 0 !important;
-}
-
-.branch-handle:hover {
-  transform: scale(1.4);
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: none !important;
 }
