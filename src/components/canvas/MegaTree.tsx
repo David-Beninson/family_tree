@@ -15,31 +15,25 @@ import FamilyEdge from './FamilyEdge';
 import { useFamilyStore } from '../../lib/store';
 
 // Union Node: The center hub between parents, visually a sleek + button to add children
-const UnionNode = () => {
+const UnionNode = ({ data }: any) => {
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     window.alert('פעולה זו תפתח חלון הוספת: ילד/ה חדש/ה בדאטה בייס!');
   };
 
   return (
-    <div 
+    <div
       onClick={handleClick}
       className="relative flex justify-center items-center w-5 h-5 bg-slate-800 text-white rounded-full cursor-pointer hover:bg-slate-600 hover:scale-125 shadow-md transition-all z-20 group"
     >
-      <Handle type="target" position={Position.Top} id="top" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
-      <Handle type="target" position={Position.Left} id="left-in" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
-      <Handle type="target" position={Position.Right} id="right-in" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
-      {/* Modern crisp plus symbol */}
+      {/* 🌟 החזרנו את ה-IDs כדי ש-React Flow יידע מאיפה להיכנס! 🌟 */}
+      <Handle type="target" position={Position.Top} id="top-target" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
+      <Handle type="target" position={Position.Left} id="left-target" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
+      <Handle type="target" position={Position.Right} id="right-target" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
+
       <span className="font-semibold text-[13px] leading-none select-none pointer-events-none">+</span>
-      
-      <Handle type="source" position={Position.Bottom} id="bottom" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
-      
-      {/* Explicit bubble for dragging out child connection */}
-      <Handle 
-        type="source" position={Position.Bottom} id="add-child" 
-        style={{ width: '100%', height: '100%', borderRadius: '50%', border: 'none', background: 'transparent', left: 0, top: 0 }}
-        className="!min-w-0 !min-h-0 absolute opacity-0 cursor-crosshair z-30" 
-      />
+
+      <Handle type="source" position={Position.Bottom} id="bottom-source" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
     </div>
   );
 };
@@ -47,7 +41,12 @@ const UnionNode = () => {
 // Node types & Edge types are memoized inside the component to survive Next.js Fast Refresh
 
 export default function MegaTree() {
-  const { nodes, edges, onNodesChange, onEdgesChange } = useFamilyStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, rebuildGraph } = useFamilyStore();
+
+  // Initial layout calculation on mount
+  React.useEffect(() => {
+    rebuildGraph();
+  }, [rebuildGraph]);
 
   const nodeTypes = React.useMemo(() => ({
     familyMember: FamilyNode,
@@ -62,7 +61,7 @@ export default function MegaTree() {
     (event: MouseEvent | TouchEvent, connectionState: any) => {
       // Support xyflow v11 and v12 object structures safely
       const state = connectionState?.[0] || connectionState;
-      
+
       if (state && !state.isValid && state.fromHandle) {
         const handleId = state.fromHandle.id;
         let label = '';
@@ -89,7 +88,9 @@ export default function MegaTree() {
         onConnectEnd={onConnectEnd}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        nodesConnectable={true}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={true}
         fitView
         minZoom={0.2}
         maxZoom={1.5}

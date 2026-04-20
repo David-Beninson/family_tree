@@ -5,10 +5,10 @@ import { Handle, Position, NodeProps, Node } from '@xyflow/react';
 import { Person } from '../../lib/types';
 import { ChevronLeft } from 'lucide-react';
 
-export type FamilyMemberNode = Node<{ 
-  person: Person; 
-  isMarried?: boolean; 
-  parentCount?: number; 
+export type FamilyMemberNode = Node<{
+  person: Person;
+  isMarried?: boolean;
+  parentCount?: number;
 }, 'familyMember'>;
 
 export const FamilyNode = memo(({ data }: NodeProps<FamilyMemberNode>) => {
@@ -82,9 +82,13 @@ export const FamilyNode = memo(({ data }: NodeProps<FamilyMemberNode>) => {
       </button>
 
       {/* === UNIQUE HANDLES FOR ROUTING (Invisible) === */}
-
+      <Handle type="source" position={Position.Top} id="top-source" className="opacity-0" />
       <Handle type="target" position={Position.Top} id="top-target" className="opacity-0" />
-      <Handle type="source" position={Position.Bottom} id="bottom-source" className="opacity-0 w-1 h-1" />
+      <Handle type="source" position={Position.Bottom} id="bottom-source" className="opacity-0" />
+      <Handle type="source" position={Position.Left} id="left-out" className="opacity-0" />
+      <Handle type="target" position={Position.Left} id="left-in" className="opacity-0" />
+      <Handle type="source" position={Position.Right} id="right-out" className="opacity-0" />
+      <Handle type="target" position={Position.Right} id="right-in" className="opacity-0" />
       <Handle type="source" position={Position.Right} id="right-out" className="opacity-0" />
       <Handle type="target" position={Position.Right} id="right-in" className="opacity-0" />
       <Handle type="source" position={Position.Left} id="left-out" className="opacity-0" />
@@ -94,28 +98,28 @@ export const FamilyNode = memo(({ data }: NodeProps<FamilyMemberNode>) => {
 
       {/* Add Parent (Top) */}
       {showParentTop && (
-        <Handle 
-          type="source" position={Position.Top} id="add-parent" 
+        <Handle
+          type="source" position={Position.Top} id="add-parent"
           onClick={(e) => { e.stopPropagation(); window.alert('(קליק) פעולה זו תפתח חלון הוספת: הורה לכרטיסייה!'); }}
-          className="w-4 h-4 !bg-slate-300 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10" 
+          className="w-4 h-4 !bg-slate-300 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10"
         />
       )}
 
       {/* Add Spouse Right (for Female) */}
       {showSpouseRight && (
-        <Handle 
-          type="source" position={Position.Right} id="add-spouse-right" 
+        <Handle
+          type="source" position={Position.Right} id="add-spouse-right"
           onClick={(e) => { e.stopPropagation(); window.alert('(קליק) פעולה זו תפתח חלון הוספת: בן/בת זוג!'); }}
-          className="w-4 h-4 !bg-blue-400 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10" 
+          className="w-4 h-4 !bg-blue-400 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10"
         />
       )}
 
       {/* Add Spouse Left (for Male) */}
       {showSpouseLeft && (
-        <Handle 
-          type="source" position={Position.Left} id="add-spouse-left" 
+        <Handle
+          type="source" position={Position.Left} id="add-spouse-left"
           onClick={(e) => { e.stopPropagation(); window.alert('(קליק) פעולה זו תפתח חלון הוספת: בן/בת זוג!'); }}
-          className="w-4 h-4 !bg-pink-400 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10" 
+          className="w-4 h-4 !bg-pink-400 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10"
         />
       )}
 
