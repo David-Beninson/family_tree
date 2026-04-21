@@ -21,9 +21,11 @@ interface FamilyState {
   persons: Person[];
   unions: Union[];
   links: PersonUnionLink[];
+  focusUnionId: string | undefined;
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
   rebuildGraph: () => void;
+  setFocusUnion: (id: string) => void;
   updatePersons: (newPersons: Person[]) => void;
   updateUnions: (newUnions: Union[]) => void;
   updateLinks: (newLinks: PersonUnionLink[]) => void;
@@ -35,6 +37,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
   persons: initialPersons,
   unions: initialUnions,
   links: initialLinks,
+  focusUnionId: undefined,
 
   onNodesChange: (changes) => {
     set({ nodes: applyNodeChanges(changes, get().nodes) });
@@ -52,10 +55,9 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       const hubIndex = updatedNodes.findIndex(n => n.id === `union-hub-${u.id}`);
 
       if (p1Node && p2Node && hubIndex !== -1) {
-        const isDivorced = u.status === 'divorced';
         const hasChildren = links.some(l => l.unionId === u.id && l.role === 'child');
 
-        const newHubPos = calculateHubPosition(p1Node.position, p2Node.position, isDivorced, hasChildren);
+        const newHubPos = calculateHubPosition(p1Node.position, p2Node.position, u.status, hasChildren);
 
         if (
           Math.abs(updatedNodes[hubIndex].position.x - (newHubPos.x - 10)) > 0.5 ||
@@ -76,9 +78,14 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
   onEdgesChange: (changes) => set({ edges: applyEdgeChanges(changes, get().edges) }),
 
   rebuildGraph: () => {
-    const { persons, unions, links } = get();
-    const { nodes, edges } = buildGraphLayout(persons, unions, links);
+    const { persons, unions, links, focusUnionId } = get();
+    const { nodes, edges } = buildGraphLayout(persons, unions, links, focusUnionId || undefined);
     set({ nodes, edges });
+  },
+
+  setFocusUnion: (id) => {
+    set({ focusUnionId: id });
+    get().rebuildGraph();
   },
 
   updatePersons: (newPersons) => {

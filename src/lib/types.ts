@@ -13,6 +13,8 @@ export type Person = {
 export type Union = {
   id: string;
   status: 'married' | 'divorced' | 'partnered' | 'separated';
+  marriageYear?: number;
+  divorceYear?: number;
 };
 
 export type PersonUnionLink = {

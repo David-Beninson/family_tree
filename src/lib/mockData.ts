@@ -21,13 +21,13 @@ export const initialPersons: Person[] = [
 ];
 
 export const initialUnions: Union[] = [
-    { id: 'u1', status: 'married' },
-    { id: 'u_noa_parents', status: 'married' },
-    { id: 'u2', status: 'married' },
-    { id: 'u3', status: 'divorced' },
-    { id: 'u6', status: 'married' },
-    { id: 'u4', status: 'married' },
-    { id: 'u5', status: 'divorced' },
+    { id: 'u1', status: 'married', marriageYear: 1974 },
+    { id: 'u_noa_parents', status: 'married', marriageYear: 1976 },
+    { id: 'u2', status: 'married', marriageYear: 1998 },
+    { id: 'u3', status: 'divorced', marriageYear: 2004, divorceYear: 2012 },
+    { id: 'u6', status: 'married', marriageYear: 2014 },
+    { id: 'u4', status: 'married', marriageYear: 2023 },
+    { id: 'u5', status: 'divorced', marriageYear: 2022, divorceYear: 2024 },
 ];
 
 export const initialLinks: PersonUnionLink[] = [
