@@ -2,8 +2,9 @@
 
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps, Node } from '@xyflow/react';
+import { ChevronLeft, Target } from 'lucide-react';
+import { useFamilyStore } from '../../lib/store';
 import { Person } from '../../lib/types';
-import { ChevronLeft } from 'lucide-react';
 
 export type FamilyMemberNode = Node<{
   person: Person;
@@ -11,10 +12,12 @@ export type FamilyMemberNode = Node<{
   parentCount?: number;
 }, 'familyMember'>;
 
-export const FamilyNode = memo(({ data }: NodeProps<FamilyMemberNode>) => {
+export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
   const { person } = data;
   const isMarried = data.isMarried;
   const parentCount = (data.parentCount) || 0;
+
+  const { links, setFocusUnion } = useFamilyStore();
 
   const isMale = person.gender === 'male';
   const currentYear = new Date().getFullYear();
@@ -36,6 +39,22 @@ export const FamilyNode = memo(({ data }: NodeProps<FamilyMemberNode>) => {
   const dateText = person.isAlive
     ? `${person.birthYear}`
     : `${person.deathYear} - ${person.birthYear}`;
+
+  const handleFocus = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Find first union where this person is a partner
+    const partnerLink = links.find(l => l.personId === person.id && l.role === 'partner');
+    // Or where they are a child
+    const childLink = links.find(l => l.personId === person.id && l.role === 'child');
+
+    if (partnerLink) {
+      setFocusUnion(partnerLink.unionId);
+    } else if (childLink) {
+      setFocusUnion(childLink.unionId);
+    } else {
+      window.alert('לאדם זה אין משפחה מקושרת למיקוד');
+    }
+  };
 
   const handleAlert = () => {
     window.alert(`פעולה זו פותחת את הכרטיס של: ${person.fullName}`);
@@ -74,12 +93,22 @@ export const FamilyNode = memo(({ data }: NodeProps<FamilyMemberNode>) => {
         </span>
       </div>
 
-      <button
-        onClick={handleAlert}
-        className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors ml-2"
-      >
-        <ChevronLeft className="w-5 h-5" />
-      </button>
+      <div className="flex flex-row gap-1">
+        <button
+          onClick={handleFocus}
+          title="התמקד במשפחה של אדם זה"
+          className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 flex items-center justify-center text-blue-500 hover:text-blue-700 transition-colors"
+        >
+          <Target className="w-5 h-5" />
+        </button>
+
+        <button
+          onClick={handleAlert}
+          className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+      </div>
 
       {/* === UNIQUE HANDLES FOR ROUTING (Invisible) === */}
       <Handle type="source" position={Position.Top} id="top-source" className="opacity-0" />

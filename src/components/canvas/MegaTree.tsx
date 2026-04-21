@@ -26,7 +26,6 @@ const UnionNode = ({ data }: any) => {
       onClick={handleClick}
       className="relative flex justify-center items-center w-5 h-5 bg-slate-800 text-white rounded-full cursor-pointer hover:bg-slate-600 hover:scale-125 shadow-md transition-all z-20 group"
     >
-      {/* 🌟 החזרנו את ה-IDs כדי ש-React Flow יידע מאיפה להיכנס! 🌟 */}
       <Handle type="target" position={Position.Top} id="top-target" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
       <Handle type="target" position={Position.Left} id="left-target" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
       <Handle type="target" position={Position.Right} id="right-target" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
