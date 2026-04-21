@@ -88,18 +88,43 @@ export function buildGraphLayout(
         if (visitedHubs.has(uId)) return;
 
         const partners = getUnionPartners(uId);
-        if (positions[partners[0]] && positions[partners[1]]) {
+
+        // שמירה על אותה לוגיקת ימין/שמאל גם כשעולים למעלה כדי למנוע החלפת צדדים
+        const sortedPartners = [...partners].sort((a, b) => a.localeCompare(b));
+        let pRightId = sortedPartners[1] || partners[1];
+        let pLeftId = partners.find(id => id !== pRightId)!;
+
+        const p1HasLineage = !!getParentUnion(sortedPartners[0]);
+        const p2HasLineage = !!getParentUnion(sortedPartners[1]);
+        if (p1HasLineage && !p2HasLineage) {
+            pRightId = sortedPartners[0];
+            pLeftId = sortedPartners[1];
+        } else if (!p1HasLineage && p2HasLineage) {
+            pRightId = sortedPartners[1];
+            pLeftId = sortedPartners[0];
+        }
+
+        const existingLeft = positions[pLeftId];
+        const existingRight = positions[pRightId];
+
+        if (existingLeft && existingRight) {
             visitedHubs.add(uId);
+            hubPositions[uId] = { x: (existingLeft.x + existingRight.x) / 2, y: Y + (SPACING.CARD_HEIGHT / 2) };
             return;
         }
 
-        visitedHubs.add(uId);
-        hubPositions[uId] = { x: anchorCenterX, y: Y + (SPACING.CARD_HEIGHT / 2) };
+        let finalHubX = anchorCenterX;
+        if (existingLeft && !existingRight) {
+            finalHubX = existingLeft.x + PARTNER_OFFSET;
+        } else if (existingRight && !existingLeft) {
+            finalHubX = existingRight.x - PARTNER_OFFSET;
+        }
 
-        const pLeftId = partners[0];
-        const pRightId = partners[1];
-        const pLeftX = anchorCenterX - PARTNER_OFFSET;
-        const pRightX = anchorCenterX + PARTNER_OFFSET;
+        visitedHubs.add(uId);
+        hubPositions[uId] = { x: finalHubX, y: Y + (SPACING.CARD_HEIGHT / 2) };
+
+        const pLeftX = finalHubX - PARTNER_OFFSET;
+        const pRightX = finalHubX + PARTNER_OFFSET;
 
         if (!positions[pLeftId]) positions[pLeftId] = { x: pLeftX, y: Y };
         if (!positions[pRightId]) positions[pRightId] = { x: pRightX, y: Y };
@@ -113,7 +138,7 @@ export function buildGraphLayout(
     };
 
     // --- PASS 2: Downwards Placement with Anchoring ---
-    const placeUnion = (uId: string, hubX: number, Y: number, pIdToPositionAtOffset?: string) => {
+    const placeUnion = (uId: string, hubX: number, Y: number, context?: { type: 'pivot' | 'child', sourceId: string, direction?: 1 | -1 }) => {
         if (visitedHubs.has(uId)) return;
 
         const u = unions.find(un => un.id === uId);
@@ -122,51 +147,83 @@ export function buildGraphLayout(
         const partners = getUnionPartners(uId);
         if (partners.length !== 2) return;
 
-        // לוגיקת העיגון: בדוק אם אחד מבני הזוג כבר מוקם ע"י ענף אחר
-        const existingP1 = positions[partners[0]];
-        const existingP2 = positions[partners[1]];
+        // 1. קודם כל נחליט מי ימין ומי שמאל
+        const sortedPartners = [...partners].sort((a, b) => a.localeCompare(b));
+        let pLeftId = sortedPartners[0];
+        let pRightId = sortedPartners[1];
+
+        const p1HasLineage = !!getParentUnion(sortedPartners[0]);
+        const p2HasLineage = !!getParentUnion(sortedPartners[1]);
+
+        if (p1HasLineage && !p2HasLineage) {
+            pRightId = sortedPartners[0];
+            pLeftId = sortedPartners[1];
+        } else if (!p1HasLineage && p2HasLineage) {
+            pRightId = sortedPartners[1];
+            pLeftId = sortedPartners[0];
+        }
+
+        // דורסים ימין/שמאל רק אם זה פיבוט, כדי לדחוף את המשפחה החוצה מהאדם המשותף
+        if (context?.type === 'pivot' && context.direction) {
+            if (context.direction === 1) { // פיבוט נדחף ימינה -> האדם המשותף חייב להיות משמאל
+                pLeftId = context.sourceId;
+                pRightId = partners.find(id => id !== context.sourceId)!;
+            } else { // פיבוט נדחף שמאלה -> האדם המשותף חייב להיות מימין
+                pRightId = context.sourceId;
+                pLeftId = partners.find(id => id !== context.sourceId)!;
+            }
+        }
+
+        const existingLeft = positions[pLeftId];
+        const existingRight = positions[pRightId];
 
         let finalHubX = hubX;
 
-        // אם אחד מבני הזוג כבר קיים, נזיז את ה-Hub של האיחוד הנוכחי ביחס אליו
-        if (existingP1 && !existingP2) {
-            finalHubX = existingP1.x + CARD_CENTER_OFFSET + PARTNER_OFFSET;
-        } else if (existingP2 && !existingP1) {
-            finalHubX = existingP2.x + CARD_CENTER_OFFSET - PARTNER_OFFSET;
-        } else if (existingP1 && existingP2) {
-            // שניהם כבר קיימים (מקרה קצה של נישואי קרובים הדוקים) - נשים את ה-Hub באמצע ביניהם
-            finalHubX = (existingP1.x + existingP2.x) / 2 + CARD_CENTER_OFFSET;
+        // 2. עיגון ה-Hub
+        if (context) {
+            // הגענו מפיבוט או מילד - נשתמש ב-hubX שחושב במדויק על ידי המנוע כדי לא לדרוס משפחות!
+            finalHubX = hubX;
+        } else {
+            // הגענו מענף אחר - צריך לעגן לאדם קיים (מונע התנגשויות של נישואי קרובים)
+            if (existingLeft && !existingRight) {
+                finalHubX = existingLeft.x + PARTNER_OFFSET;
+            } else if (existingRight && !existingLeft) {
+                finalHubX = existingRight.x - PARTNER_OFFSET;
+            } else if (existingLeft && existingRight) {
+                finalHubX = (existingLeft.x + existingRight.x) / 2;
+            }
         }
 
         visitedHubs.add(uId);
         hubPositions[uId] = { x: finalHubX, y: Y + (SPACING.CARD_HEIGHT / 2) };
 
-        // קביעת מיקומים לבני הזוג (רק אם לא קיימים)
-        let pRightId = pIdToPositionAtOffset || partners[1];
-        let pLeftId = partners.find(id => id !== pRightId)!;
+        // 3. הצבת בני הזוג (רק אם לא הוצבו כבר!)
+        if (!existingLeft) positions[pLeftId] = { x: finalHubX - PARTNER_OFFSET, y: Y };
+        if (!existingRight) positions[pRightId] = { x: finalHubX + PARTNER_OFFSET, y: Y };
 
-        const pLeftX = finalHubX - PARTNER_OFFSET;
-        const pRightX = finalHubX + PARTNER_OFFSET;
-
-        if (!positions[pLeftId]) positions[pLeftId] = { x: pLeftX, y: Y };
-        if (!positions[pRightId]) positions[pRightId] = { x: pRightX, y: Y };
-
-        // המשך כרגיל לשאר הענף (Pivots וילדים)
+        // 4. המשך לנישואים נוספים (Pivot)
         const handlePivot = (pId: string, currentX: number, isRight: boolean) => {
             const otherUnions = getPartnerLinks(pId).filter(l => l.unionId !== uId);
             let direction = isRight ? 1 : -1;
+            let currentPivotOffset = currentX + CARD_CENTER_OFFSET; // מתחילים ממרכז הכרטיסייה הקיים
+
             otherUnions.forEach(link => {
                 if (visitedHubs.has(link.unionId)) return;
                 const uOtherWidth = unionWidths[link.unionId] || (SPACING.CARD_WIDTH * 2 + SPACING.MIN_NODE_GAP);
-                const otherHubX = currentX + CARD_CENTER_OFFSET + direction * (uOtherWidth / 2 + SPACING.MIN_NODE_GAP);
-                placeUnion(link.unionId, otherHubX, Y, pId);
+
+                // חישוב המיקום החדש להאב תוך כדי הדיפה החוצה
+                const otherHubX = currentPivotOffset + direction * (uOtherWidth / 2 + SPACING.MIN_NODE_GAP);
+                placeUnion(link.unionId, otherHubX, Y, { type: 'pivot', sourceId: pId, direction: direction as 1 | -1 });
+
+                // עדכון האופסט כדי שהאישה/הבעל השלישיים יידחפו עוד יותר החוצה ולא ידרסו את השניים!
+                currentPivotOffset = otherHubX + direction * (uOtherWidth / 2);
             });
         };
 
         handlePivot(pLeftId, positions[pLeftId].x, false);
         handlePivot(pRightId, positions[pRightId].x, true);
 
-        // הוספת הורים (Pass 3 רקורסיבי)
+        // 5. הוספת הורים (Pass 3 רקורסיבי)
         [pLeftId, pRightId].forEach(pId => {
             const parentUId = getParentUnion(pId);
             if (parentUId && !visitedHubs.has(parentUId)) {
@@ -174,7 +231,7 @@ export function buildGraphLayout(
             }
         });
 
-        // מיקום ילדים
+        // 6. מיקום ילדים
         const children = getUnionChildren(uId).sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0));
         if (children.length > 0) {
             const totalChildrenWidth = children.reduce((sum, c) => sum + (subtreeWidths[c.id] || SPACING.CARD_WIDTH), 0) + (children.length - 1) * SPACING.SIBLING_GAP;
@@ -184,7 +241,7 @@ export function buildGraphLayout(
                 const childUnions = getPartnerLinks(child.id);
                 if (childUnions.length > 0 && !visitedHubs.has(childUnions[0].unionId)) {
                     const childHubX = currentChildX + (subtreeWidths[child.id] / 2);
-                    placeUnion(childUnions[0].unionId, childHubX, Y + SPACING.LEVEL_Y, child.id);
+                    placeUnion(childUnions[0].unionId, childHubX, Y + SPACING.LEVEL_Y, { type: 'child', sourceId: child.id });
                 } else if (!positions[child.id]) {
                     positions[child.id] = { x: currentChildX, y: Y + SPACING.LEVEL_Y };
                 }
