@@ -4,6 +4,7 @@ import { Person, Union, PersonUnionLink, BudConfig } from './types';
 export const SPACING = {
     CARD_WIDTH: 280,
     CARD_HEIGHT: 90,
+    NODE_PADDING: 20, // מרחב הגנה מסביב לכל כרטיס
     MIN_NODE_GAP: 60,
     SIBLING_GAP: 120,
     LEVEL_Y: 250,
@@ -24,9 +25,9 @@ export const calculateHubPosition = (p1Pos: { x: number, y: number }, p2Pos: { x
 };
 
 export function buildGraphLayout(
-    persons: Person[], 
-    unions: Union[], 
-    links: PersonUnionLink[], 
+    persons: Person[],
+    unions: Union[],
+    links: PersonUnionLink[],
     focusUnionId?: string
 ): { nodes: Node[], edges: Edge[] } {
     const rfNodes: Node[] = [];
@@ -36,12 +37,13 @@ export function buildGraphLayout(
     const hubPositions: Record<string, { x: number, y: number }> = {};
     const subtreeWidths: Record<string, number> = {};
     const unionWidths: Record<string, number> = {};
-    
+
     const visitedWidths = new Set<string>();
     const visitedHubs = new Set<string>();
 
-    const CARD_CENTER_OFFSET = SPACING.CARD_WIDTH / 2;
-    const PARTNER_OFFSET = (SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP) / 2;
+    const PADDED_CARD_WIDTH = SPACING.CARD_WIDTH + (2 * SPACING.NODE_PADDING);
+    const CARD_CENTER_OFFSET = PADDED_CARD_WIDTH / 2;
+    const PARTNER_OFFSET = (PADDED_CARD_WIDTH + SPACING.MIN_NODE_GAP) / 2;
 
     // --- Helpers ---
     const getPartnerLinks = (pId: string) => links.filter(l => l.personId === pId && l.role === 'partner');
@@ -56,21 +58,21 @@ export function buildGraphLayout(
 
         const myUnions = getPartnerLinks(pId);
         if (myUnions.length === 0) {
-            subtreeWidths[pId] = SPACING.CARD_WIDTH;
-            return SPACING.CARD_WIDTH;
+            subtreeWidths[pId] = PADDED_CARD_WIDTH;
+            return PADDED_CARD_WIDTH;
         }
 
         let totalWidth = 0;
         myUnions.forEach((link, idx) => {
             const uId = link.unionId;
             const children = getUnionChildren(uId);
-            
-            const childrenWidth = children.length === 0 ? 0 : 
+
+            const childrenWidth = children.length === 0 ? 0 :
                 children.reduce((sum, c) => sum + calculatePersonWidth(c.id), 0) + (children.length - 1) * SPACING.SIBLING_GAP;
-            
-            const unionBaseWidth = (SPACING.CARD_WIDTH * 2) + SPACING.MIN_NODE_GAP;
+
+            const unionBaseWidth = (PADDED_CARD_WIDTH * 2) + SPACING.MIN_NODE_GAP;
             const unionTrueWidth = Math.max(unionBaseWidth, childrenWidth);
-            
+
             unionWidths[uId] = unionTrueWidth;
             totalWidth += unionTrueWidth;
             if (idx < myUnions.length - 1) totalWidth += SPACING.SIBLING_GAP;
@@ -91,7 +93,7 @@ export function buildGraphLayout(
         if (!u) return;
 
         hubPositions[uId] = { x: anchorCenterX, y: Y + (SPACING.CARD_HEIGHT / 2) };
-        
+
         const partners = getUnionPartners(uId);
         if (partners.length !== 2) return;
 
@@ -152,10 +154,10 @@ export function buildGraphLayout(
         const handlePivot = (pId: string, currentX: number, isRight: boolean) => {
             const otherUnions = getPartnerLinks(pId).filter(l => l.unionId !== uId);
             let direction = isRight ? 1 : -1;
-            
+
             otherUnions.forEach(link => {
                 const uOtherId = link.unionId;
-                const uOtherWidth = unionWidths[uOtherId] || (SPACING.CARD_WIDTH * 2 + SPACING.MIN_NODE_GAP);
+                const uOtherWidth = unionWidths[uOtherId] || (PADDED_CARD_WIDTH * 2 + SPACING.MIN_NODE_GAP);
                 // Center the other family to the side
                 const otherHubX = currentX + CARD_CENTER_OFFSET + direction * (uOtherWidth / 2 + SPACING.MIN_NODE_GAP);
                 placeUnion(uOtherId, otherHubX, Y, pId);
@@ -175,7 +177,7 @@ export function buildGraphLayout(
         });
 
         // Place Children
-        const children = getUnionChildren(uId).sort((a,b) => (a.birthYear || 0) - (b.birthYear || 0));
+        const children = getUnionChildren(uId).sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0));
         if (children.length > 0) {
             const totalChildrenWidth = children.reduce((sum, c) => sum + (subtreeWidths[c.id] || SPACING.CARD_WIDTH), 0) + (children.length - 1) * SPACING.SIBLING_GAP;
             let currentChildX = hubX - (totalChildrenWidth / 2);
@@ -189,7 +191,7 @@ export function buildGraphLayout(
                 } else {
                     positions[child.id] = { x: currentChildX, y: Y + SPACING.LEVEL_Y };
                 }
-                currentChildX += (subtreeWidths[child.id] || SPACING.CARD_WIDTH) + SPACING.SIBLING_GAP;
+                currentChildX += (subtreeWidths[child.id] || PADDED_CARD_WIDTH) + SPACING.SIBLING_GAP;
             });
         }
     };
@@ -231,7 +233,7 @@ export function buildGraphLayout(
         rfNodes.push({
             id: p.id,
             type: 'familyMember',
-            position: positions[p.id],
+            position: { x: positions[p.id].x + SPACING.NODE_PADDING, y: positions[p.id].y },
             width: SPACING.CARD_WIDTH,
             height: SPACING.CARD_HEIGHT,
             draggable: false,
