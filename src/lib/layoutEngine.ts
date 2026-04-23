@@ -35,15 +35,27 @@ export function buildGraphLayout(
 
     const positions: Record<string, { x: number, y: number }> = {};
     const hubPositions: Record<string, { x: number, y: number }> = {};
-    const subtreeWidths: Record<string, number> = {};
-    const unionWidths: Record<string, number> = {};
 
-    const visitedWidths = new Set<string>();
+    // שתי טבלאות cache נפרדות — זהו המפתח לאלגוריתם נכון:
+    // unionSubtreeWidths: רוחב של Union כולל כל עץ הצאצאים שלו
+    // subtreeWidths: רוחב של אדם כולל כל הנישואין שלו
+    const unionSubtreeWidths: Record<string, number> = {};
+    const subtreeWidths: Record<string, number> = {};
+
     const visitedHubs = new Set<string>();
 
+    // גיאומטריית הזוג — כל הקבועים חייבים להיות עקביים:
+    // Hub נמצא בין שתי הכרטיסיות.
+    // כרטיס שמאלי מתחיל ב: hub - PARTNER_OFFSET
+    // כרטיס ימני מתחיל ב:  hub + PARTNER_OFFSET
+    // -> COUPLE_WIDTH האמיתי = 2*PARTNER_OFFSET + CARD_WIDTH
+    // -> פער בין כרטיסיות = 2*PARTNER_OFFSET - CARD_WIDTH = MIN_NODE_GAP (60px)
+    // PARTNER_OFFSET = (CARD_WIDTH + MIN_NODE_GAP) / 2 = (280+60)/2 = 170
+    const PARTNER_OFFSET = (SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP) / 2; // = 170
+    const COUPLE_WIDTH = (PARTNER_OFFSET * 2) + SPACING.CARD_WIDTH;          // = 620
     const PADDED_CARD_WIDTH = SPACING.CARD_WIDTH + (2 * SPACING.NODE_PADDING);
     const CARD_CENTER_OFFSET = PADDED_CARD_WIDTH / 2;
-    const PARTNER_OFFSET = (PADDED_CARD_WIDTH + SPACING.MIN_NODE_GAP) / 2;
+
 
     // --- Helpers ---
     const getPartnerLinks = (pId: string) => links.filter(l => l.personId === pId && l.role === 'partner');
@@ -51,37 +63,54 @@ export function buildGraphLayout(
     const getUnionChildren = (uId: string) => links.filter(l => l.unionId === uId && l.role === 'child').map(l => persons.find(p => p.id === l.personId)).filter(Boolean) as Person[];
     const getParentUnion = (pId: string) => links.find(l => l.personId === pId && l.role === 'child')?.unionId;
 
-    // --- PASS 1: Width Calculation (Robust for Shared Lineage) ---
-    const calculatePersonWidth = (pId: string): number => {
-        if (subtreeWidths[pId]) return subtreeWidths[pId];
+    // --- PASS 1: Bottom-Up Width Calculation ---
+    // שתי פונקציות רקורסיביות שמחשבות רוחב נכון מלמטה למעלה.
+    // כל union יודע כמה מקום הוא צריך בשביל עצמו + כל הצאצאים שלו.
+
+    // getUnionSubtreeWidth: כמה רוחב דורש Union אחד (זוג + כל ילדיהם + כל נישואיהם)
+    const getUnionSubtreeWidth = (uId: string): number => {
+        if (unionSubtreeWidths[uId] !== undefined) return unionSubtreeWidths[uId];
+
+        const children = getUnionChildren(uId);
+
+        if (children.length === 0) {
+            unionSubtreeWidths[uId] = COUPLE_WIDTH;
+            return COUPLE_WIDTH;
+        }
+
+        // רוחב כולל הילדים = סכום רוחב כל ילד + מרווחים
+        const childrenTotalWidth =
+            children.reduce((sum, c) => sum + getPersonSubtreeWidth(c.id), 0)
+            + (children.length - 1) * SPACING.SIBLING_GAP;
+
+        unionSubtreeWidths[uId] = Math.max(COUPLE_WIDTH, childrenTotalWidth);
+        return unionSubtreeWidths[uId];
+    };
+
+    // getPersonSubtreeWidth: כמה רוחב דורש אדם (כולל כל הנישואין שלו ממוקמים זה לצד זה)
+    const getPersonSubtreeWidth = (pId: string): number => {
+        if (subtreeWidths[pId] !== undefined) return subtreeWidths[pId];
 
         const myUnions = getPartnerLinks(pId);
+
         if (myUnions.length === 0) {
             subtreeWidths[pId] = SPACING.CARD_WIDTH;
             return SPACING.CARD_WIDTH;
         }
 
-        let totalWidth = 0;
-        myUnions.forEach((link, idx) => {
-            const uId = link.unionId;
-            const children = getUnionChildren(uId);
-
-            const childrenWidth = children.length === 0 ? 0 :
-                children.reduce((sum, c) => sum + calculatePersonWidth(c.id), 0) + (children.length - 1) * SPACING.SIBLING_GAP;
-
-            const unionBaseWidth = (SPACING.CARD_WIDTH * 2) + SPACING.MIN_NODE_GAP;
-            const unionTrueWidth = Math.max(unionBaseWidth, childrenWidth);
-
-            unionWidths[uId] = unionTrueWidth;
-            totalWidth += unionTrueWidth;
-            if (idx < myUnions.length - 1) totalWidth += SPACING.SIBLING_GAP;
-        });
+        // כל נישואין של האדם יושבים זה לצד זה — סכום רוחב כולם
+        const totalWidth = myUnions.reduce(
+            (sum, link, idx) => sum + getUnionSubtreeWidth(link.unionId) + (idx > 0 ? SPACING.SIBLING_GAP : 0),
+            0
+        );
 
         subtreeWidths[pId] = totalWidth;
         return totalWidth;
     };
 
-    persons.forEach(p => calculatePersonWidth(p.id));
+    // הפעל על כולם לפני ההצבה
+    persons.forEach(p => getPersonSubtreeWidth(p.id));
+    unions.forEach(u => getUnionSubtreeWidth(u.id));
 
     // --- PASS 3: Upwards Placement ---
     const placeAncestorUnion = (uId: string, anchorCenterX: number, Y: number) => {
@@ -89,7 +118,6 @@ export function buildGraphLayout(
 
         const partners = getUnionPartners(uId);
 
-        // שמירה על אותה לוגיקת ימין/שמאל גם כשעולים למעלה כדי למנוע החלפת צדדים
         const sortedPartners = [...partners].sort((a, b) => a.localeCompare(b));
         let pRightId = sortedPartners[1] || partners[1];
         let pLeftId = partners.find(id => id !== pRightId)!;
@@ -123,11 +151,8 @@ export function buildGraphLayout(
         visitedHubs.add(uId);
         hubPositions[uId] = { x: finalHubX, y: Y + (SPACING.CARD_HEIGHT / 2) };
 
-        const pLeftX = finalHubX - PARTNER_OFFSET;
-        const pRightX = finalHubX + PARTNER_OFFSET;
-
-        if (!positions[pLeftId]) positions[pLeftId] = { x: pLeftX, y: Y };
-        if (!positions[pRightId]) positions[pRightId] = { x: pRightX, y: Y };
+        if (!positions[pLeftId]) positions[pLeftId] = { x: finalHubX - PARTNER_OFFSET, y: Y };
+        if (!positions[pRightId]) positions[pRightId] = { x: finalHubX + PARTNER_OFFSET, y: Y };
 
         [pLeftId, pRightId].forEach(pId => {
             const parentUId = getParentUnion(pId);
@@ -163,12 +188,11 @@ export function buildGraphLayout(
             pLeftId = sortedPartners[0];
         }
 
-        // דורסים ימין/שמאל רק אם זה פיבוט, כדי לדחוף את המשפחה החוצה מהאדם המשותף
         if (context?.type === 'pivot' && context.direction) {
-            if (context.direction === 1) { // פיבוט נדחף ימינה -> האדם המשותף חייב להיות משמאל
+            if (context.direction === 1) {
                 pLeftId = context.sourceId;
                 pRightId = partners.find(id => id !== context.sourceId)!;
-            } else { // פיבוט נדחף שמאלה -> האדם המשותף חייב להיות מימין
+            } else {
                 pRightId = context.sourceId;
                 pLeftId = partners.find(id => id !== context.sourceId)!;
             }
@@ -181,10 +205,8 @@ export function buildGraphLayout(
 
         // 2. עיגון ה-Hub
         if (context) {
-            // הגענו מפיבוט או מילד - נשתמש ב-hubX שחושב במדויק על ידי המנוע כדי לא לדרוס משפחות!
             finalHubX = hubX;
         } else {
-            // הגענו מענף אחר - צריך לעגן לאדם קיים (מונע התנגשויות של נישואי קרובים)
             if (existingLeft && !existingRight) {
                 finalHubX = existingLeft.x + PARTNER_OFFSET;
             } else if (existingRight && !existingLeft) {
@@ -202,26 +224,34 @@ export function buildGraphLayout(
         if (!existingRight) positions[pRightId] = { x: finalHubX + PARTNER_OFFSET, y: Y };
 
         // 4. המשך לנישואים נוספים (Pivot)
-        const handlePivot = (pId: string, currentX: number, isRight: boolean) => {
+        const handlePivot = (pId: string, isRight: boolean) => {
             const otherUnions = getPartnerLinks(pId).filter(l => l.unionId !== uId);
-            let direction = isRight ? 1 : -1;
-            let currentPivotOffset = currentX + CARD_CENTER_OFFSET; // מתחילים ממרכז הכרטיסייה הקיים
+            const direction = isRight ? 1 : -1;
+            const anchorX = positions[pId].x;
+
+            // Hub הראשון: PARTNER_OFFSET מהאדם הקיים → gap בין כרטיסיות = 60px
+            // כל נישואין נוספים: מתקדמים ב-(CARD_WIDTH + MIN_NODE_GAP) = 340px
+            // כך כל הזוגות אחידים ללא קשר לכמות הנישואין
+            let hubX = isRight
+                ? anchorX + PARTNER_OFFSET
+                : anchorX - PARTNER_OFFSET;
 
             otherUnions.forEach(link => {
                 if (visitedHubs.has(link.unionId)) return;
-                const uOtherWidth = unionWidths[link.unionId] || (SPACING.CARD_WIDTH * 2 + SPACING.MIN_NODE_GAP);
+                const uOtherWidth = getUnionSubtreeWidth(link.unionId);
 
-                // חישוב המיקום החדש להאב תוך כדי הדיפה החוצה
-                const otherHubX = currentPivotOffset + direction * (uOtherWidth / 2 + SPACING.MIN_NODE_GAP);
-                placeUnion(link.unionId, otherHubX, Y, { type: 'pivot', sourceId: pId, direction: direction as 1 | -1 });
+                placeUnion(link.unionId, hubX, Y, { type: 'pivot', sourceId: pId, direction: direction as 1 | -1 });
 
-                // עדכון האופסט כדי שהאישה/הבעל השלישיים יידחפו עוד יותר החוצה ולא ידרסו את השניים!
-                currentPivotOffset = otherHubX + direction * (uOtherWidth / 2);
+                // התקדמות ל-hub הבא: כרטיס בן/בת הזוג + מרווח + מקום לילדים אם יש
+                const childrenExtra = Math.max(0, uOtherWidth - COUPLE_WIDTH);
+                const advance = (SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP + childrenExtra) * direction;
+                hubX += advance;
             });
         };
 
-        handlePivot(pLeftId, positions[pLeftId].x, false);
-        handlePivot(pRightId, positions[pRightId].x, true);
+
+        handlePivot(pLeftId, false);
+        handlePivot(pRightId, true);
 
         // 5. הוספת הורים (Pass 3 רקורסיבי)
         [pLeftId, pRightId].forEach(pId => {
@@ -231,47 +261,76 @@ export function buildGraphLayout(
             }
         });
 
-        // 6. מיקום ילדים
+        // 6. מיקום ילדים — לב האלגוריתם הנכון
+        // כל ילד מקבל "תא" ברוחב getPersonSubtreeWidth שלו (= כולל כל הנישואין שלו + צאצאיהם).
+        // ה-Union הראשון של הילד מוצב במרכז ה"תא" הזה.
         const children = getUnionChildren(uId).sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0));
         if (children.length > 0) {
-            const totalChildrenWidth = children.reduce((sum, c) => sum + (subtreeWidths[c.id] || SPACING.CARD_WIDTH), 0) + (children.length - 1) * SPACING.SIBLING_GAP;
+            // רוחב כולל כל הילדים לפי subtree אמיתי
+            const totalChildrenWidth =
+                children.reduce((sum, c) => sum + getPersonSubtreeWidth(c.id), 0)
+                + (children.length - 1) * SPACING.SIBLING_GAP;
+
+            // נקודת התחלה: שמאל של כל אזור הילדים
             let currentChildX = finalHubX - (totalChildrenWidth / 2);
 
             children.forEach(child => {
+                const childPersonWidth = getPersonSubtreeWidth(child.id);
                 const childUnions = getPartnerLinks(child.id);
+
                 if (childUnions.length > 0 && !visitedHubs.has(childUnions[0].unionId)) {
-                    const childHubX = currentChildX + (subtreeWidths[child.id] / 2);
-                    placeUnion(childUnions[0].unionId, childHubX, Y + SPACING.LEVEL_Y, { type: 'child', sourceId: child.id });
+                    // לילד יש נישואין — hub מוצב PARTNER_OFFSET מהקצה השמאלי של ה"תא"
+                    // (כרטיס שמאלי מתחיל ב-currentChildX, hub = currentChildX + PARTNER_OFFSET)
+                    const primaryUnionId = childUnions[0].unionId;
+                    const primaryUnionWidth = getUnionSubtreeWidth(primaryUnionId);
+                    const primaryHubX = currentChildX + PARTNER_OFFSET;
+
+                    placeUnion(primaryUnionId, primaryHubX, Y + SPACING.LEVEL_Y, { type: 'child', sourceId: child.id });
+
+                    // Pivot unions — ממשיכים מהקצה הימני של ה-union הראשון
+                    let pivotStartX = currentChildX + primaryUnionWidth;
+                    childUnions.slice(1).forEach(link => {
+                        if (visitedHubs.has(link.unionId)) return;
+                        const pivotUnionWidth = getUnionSubtreeWidth(link.unionId);
+                        const pivotHubX = pivotStartX + PARTNER_OFFSET;
+                        placeUnion(link.unionId, pivotHubX, Y + SPACING.LEVEL_Y, { type: 'pivot', sourceId: child.id, direction: 1 });
+                        pivotStartX += pivotUnionWidth + SPACING.SIBLING_GAP;
+                    });
                 } else if (!positions[child.id]) {
-                    positions[child.id] = { x: currentChildX, y: Y + SPACING.LEVEL_Y };
+                    // ילד בלי זוג — כרטיסייה בודדת במרכז ה"תא"
+                    positions[child.id] = {
+                        x: currentChildX + (childPersonWidth / 2) - (SPACING.CARD_WIDTH / 2),
+                        y: Y + SPACING.LEVEL_Y
+                    };
                 }
-                currentChildX += (subtreeWidths[child.id] || SPACING.CARD_WIDTH) + SPACING.SIBLING_GAP;
+
+                // מקדם את נקודת ההתחלה לילד הבא
+                currentChildX += childPersonWidth + SPACING.SIBLING_GAP;
             });
         }
     };
 
     // --- EXECUTION ---
     if (focusUnionId) {
-        // גישת ה-Focus: מציירים רק את מה שמחובר לאיחוד המרכזי
         placeUnion(focusUnionId, 0, SPACING.ROOT_Y_START);
     } else {
-        // ציור כל העץ + משפחות מנותקות (Disconnected Subtrees)
         let currentXOffset = 0;
 
-        // מציאת כל האיחודים שהם "שורשים" (לפחות לאחד מבני הזוג אין הורים במערכת)
+        // "שורש" אמיתי = איחוד שלשני בני הזוג אין הורים ידועים במערכת.
+        // אם נשתמש ב-some, נישואין כמו יוסי+דנה (דנה ללא הורים) יסווגו גם הם כשורש
+        // ויוצבו ב-Y=0 כמשפחה נפרדת, וכל הצאצאים שלהם יפוזרו.
         const rootUnions = unions.filter(u => {
             const partners = getUnionPartners(u.id);
-            return partners.some(pId => !getParentUnion(pId));
+            return partners.every(pId => !getParentUnion(pId));
         });
 
-        // רצים על כל השורשים, וגם מוודאים שלא פספסנו איחודים מנותקים
         const allUnionsToProcess = [...rootUnions, ...unions];
 
         allUnionsToProcess.forEach(u => {
             if (!visitedHubs.has(u.id)) {
                 placeUnion(u.id, currentXOffset, SPACING.ROOT_Y_START);
-                // דוחפים את המשפחה המנותקת הבאה הרחק ימינה כדי שלא יתנגשו
-                const widthUsed = unionWidths[u.id] || (SPACING.CARD_WIDTH * 3);
+                // השתמש ב-unionSubtreeWidth האמיתי (שחושב כבר!) ולא ב-unionWidths
+                const widthUsed = getUnionSubtreeWidth(u.id);
                 currentXOffset += widthUsed + (SPACING.SIBLING_GAP * 2);
             }
         });
