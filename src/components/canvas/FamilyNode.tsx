@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps, Node } from '@xyflow/react';
-import { ChevronLeft } from 'lucide-react';
+
 import { useRouter } from 'next/navigation';
 import { useFamilyStore } from '../../lib/store';
 import { Person } from '../../lib/types';
@@ -105,18 +105,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
         </span>
       </div>
 
-      {/* כפתורי פעולה על הכרטיסייה */}
-      <div className="flex flex-row gap-1">
 
-
-        <button
-          onClick={handleOpenCard}
-          title="פתח כרטיס אדם"
-          className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-      </div>
 
       {/* נקודות חיבור נסתרות (Invisible Handles) עבור React Flow
         משמשות למשיכת הקווים לנקודות הנכונות סביב הכרטיסייה (כמו ענפים) בלי להציג עיגול מכוער למשתמש 
