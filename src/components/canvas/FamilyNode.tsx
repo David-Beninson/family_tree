@@ -18,11 +18,12 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
 
   const isMale = person.gender === 'male';
   const currentYear = new Date().getFullYear();
-  // Safe calculation in case birthYear is missing
+
+  // חישוב גיל: אם חסר שנת לידה, נניח שהוא לא מבוגר (כדי לא להציג כפתורי נישואין בטעות לילדים), אלא אם הוא נפטר
   const isAdult = person.isAlive ? (currentYear - (person.birthYear || currentYear) >= 18) : true;
   const isHighlighted = highlightedNodeId === id;
 
-  // Theme definition for consistent styling based on gender
+  // הגדרת צבעים דינמית לפי מגדר (Theme)
   const theme = isMale ? {
     bg: 'bg-blue-100',
     text: 'text-blue-900',
@@ -33,17 +34,17 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
     border: 'border-pink-200',
   };
 
-  // Resolve container background cleanly
   const containerBg = isHighlighted ? 'bg-white' : theme.bg;
 
   const containerClasses = [
     'relative w-[280px] h-[90px] rounded-2xl border flex flex-row items-center p-3 transition-all duration-300',
     containerBg,
-    isHighlighted 
+    isHighlighted
       ? 'ring-4 ring-amber-400 shadow-[0_0_30px_rgba(251,191,36,0.6)] animate-pulse border-amber-400 z-50'
       : 'shadow-md hover:shadow-lg border-slate-200'
   ].join(' ');
 
+  // הפקת ראשי תיבות לתמונת ברירת מחדל (למשל: "ישראל ישראלי" -> "יי")
   const initials = person.fullName
     .split(' ')
     .filter(Boolean)
@@ -52,14 +53,17 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
     .join('')
     .toUpperCase();
 
+  // עיצוב שנות חיים: מניעת הדפסת מקף בודד (" - ") אם אין נתונים למתים
   const dateText = person.isAlive
-    ? `${person.birthYear || ''}`
-    : `${person.deathYear || ''} - ${person.birthYear || ''}`;
+    ? (person.birthYear ? String(person.birthYear) : '')
+    : (person.birthYear || person.deathYear)
+      ? `${person.deathYear || '?'} - ${person.birthYear || '?'}`
+      : '';
 
+  // פונקציית מיקוד: מחפשת קודם אם הוא בזוגיות, ואם לא - מתמקדת במשפחת המקור שלו (איפה שהוא ילד)
   const handleFocus = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Prioritize focusing on partner union, fallback to child union
-    const unionLink = 
+    const unionLink =
       links.find(l => l.personId === person.id && l.role === 'partner') ||
       links.find(l => l.personId === person.id && l.role === 'child');
 
@@ -68,6 +72,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
   };
 
   const handleOpenCard = () => {
+    // TODO: לחבר לפתיחת מודל עריכת פרטי אדם בעתיד
     window.alert(`פעולה זו פותחת את הכרטיס של: ${person.fullName}`);
   };
 
@@ -81,14 +86,14 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
     openAddDrawer({ action: 'add_partner', sourcePersonId: person.id });
   };
 
-  // Node connection handles display logic
-  const showParentTop = parentCount < 2;
-  const showSpouseRight = !isMale && !isMarried && isAdult;
-  const showSpouseLeft = isMale && !isMarried && isAdult;
+  // לוגיקת הצגת כפתורי הוספה מהירה (Buds)
+  const showParentTop = parentCount < 2; // מאפשר הוספת הורים רק אם חסר אבא או אמא
+  const showSpouseRight = !isMale && !isMarried && isAdult; // בנות זוג רווקות מקבלות טיפ מימין
+  const showSpouseLeft = isMale && !isMarried && isAdult; // בני זוג רווקים מקבלים טיפ משמאל
 
   return (
     <div className={containerClasses} dir="ltr">
-      {/* Avatar */}
+      {/* תמונת פרופיל או ראשי תיבות */}
       <div className={`relative h-[65px] w-[65px] rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm mr-4 ${theme.bg}`}>
         {person.photoUrl ? (
           <img src={person.photoUrl} alt={person.fullName} className="w-full h-full object-cover" />
@@ -97,7 +102,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
         )}
       </div>
 
-      {/* Details */}
+      {/* פרטי האדם */}
       <div className="flex flex-col flex-grow justify-center overflow-hidden" dir="rtl">
         <h3 className="font-bold text-[16px] truncate text-slate-800 leading-tight">
           {person.fullName}
@@ -107,7 +112,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
         </span>
       </div>
 
-      {/* Actions */}
+      {/* כפתורי פעולה על הכרטיסייה */}
       <div className="flex flex-row gap-1">
         <button
           onClick={handleFocus}
@@ -126,7 +131,9 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
         </button>
       </div>
 
-      {/* Invisible routing handles */}
+      {/* נקודות חיבור נסתרות (Invisible Handles) עבור React Flow
+        משמשות למשיכת הקווים לנקודות הנכונות סביב הכרטיסייה (כמו ענפים) בלי להציג עיגול מכוער למשתמש 
+      */}
       <Handle type="source" position={Position.Top} id="top-source" className="opacity-0" />
       <Handle type="target" position={Position.Top} id="top-target" className="opacity-0" />
       <Handle type="source" position={Position.Bottom} id="bottom-source" className="opacity-0" />
@@ -135,7 +142,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
       <Handle type="source" position={Position.Right} id="right-out" className="opacity-0" />
       <Handle type="target" position={Position.Right} id="right-in" className="opacity-0" />
 
-      {/* Interactive bud handles */}
+      {/* כפתורי הוספה מהירים (Buds) להורים/בני זוג */}
       {showParentTop && (
         <Handle
           type="source" position={Position.Top} id="add-parent"

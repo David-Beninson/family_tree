@@ -23,12 +23,12 @@ function ConditionalMiniMap() {
   const { zoom } = useViewport();
   // Only show minimap when reasonably zoomed in (zoom > 0.6)
   if (zoom < 0.6) return null;
-  
+
   return (
-    <MiniMap 
-      nodeStrokeColor="#8b7355" 
-      maskColor="rgba(253,251,247,0.7)" 
-      className="!bg-white !shadow-xl !border-none !rounded-lg" 
+    <MiniMap
+      nodeStrokeColor="#8b7355"
+      maskColor="rgba(253,251,247,0.7)"
+      className="!bg-white !shadow-xl !border-none !rounded-lg"
     />
   );
 }
@@ -37,7 +37,7 @@ type UnionNodeData = Node<{ unionId: string }, 'union'>;
 
 const UnionNode = ({ data }: NodeProps<UnionNodeData>) => {
   const { openAddDrawer } = useFamilyStore();
-  
+
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (data?.unionId) {
@@ -67,50 +67,55 @@ export default function MegaTree() {
 
   useEffect(() => { rebuildGraph(); }, [rebuildGraph]);
 
+  const treeBounds = useMemo(() => {
+    if (nodes.length === 0) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    nodes.forEach(n => {
+      const isUnion = n.type === 'union';
+      const w = isUnion ? 20 : 280;
+      const h = isUnion ? 20 : 90;
+      minX = Math.min(minX, n.position.x);
+      minY = Math.min(minY, n.position.y);
+      maxX = Math.max(maxX, n.position.x + w);
+      maxY = Math.max(maxY, n.position.y + h);
+    });
+
+    return { minX, minY, maxX, maxY };
+  }, [nodes.length]);
+
   useEffect(() => {
-    if (nodes.length === 0) return;
-    
+    if (!treeBounds) return;
+
     const updateMinZoom = () => {
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      nodes.forEach(n => {
-        const isUnion = n.type === 'union';
-        const w = isUnion ? 20 : 280;
-        const h = isUnion ? 20 : 90;
-        minX = Math.min(minX, n.position.x);
-        minY = Math.min(minY, n.position.y);
-        maxX = Math.max(maxX, n.position.x + w);
-        maxY = Math.max(maxY, n.position.y + h);
-      });
-      
-      // Add breathing room padding around the graph bounds
       const padding = 200;
-      const graphWidth = (maxX - minX) + padding * 2; 
-      const graphHeight = (maxY - minY) + padding * 2;
-      
+      const graphWidth = (treeBounds.maxX - treeBounds.minX) + padding * 2;
+      const graphHeight = (treeBounds.maxY - treeBounds.minY) + padding * 2;
+
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      
+
       const scaleX = vw / graphWidth;
       const scaleY = vh / graphHeight;
       const exactFitScale = Math.min(scaleX, scaleY);
-      
-      // Cap the calculated min zoom to 0.8 so small trees aren't overly zoomed
-      const calculatedMin = Math.min(exactFitScale, 0.8);
-      
-      // Hard min zoom limit of 0.05
-      setMinZoom(Math.max(calculatedMin, 0.05));
 
-      // Restrict panning so the tree cannot be scrolled off-screen
-      setTranslateExtent([
-        [minX - padding, minY - padding],
-        [maxX + padding, maxY + padding]
-      ]);
+      setMinZoom(Math.max(Math.min(exactFitScale, 0.8), 0.05));
+
+      const newExtent: CoordinateExtent = [
+        [treeBounds.minX - padding, treeBounds.minY - padding],
+        [treeBounds.maxX + padding, treeBounds.maxY + padding]
+      ];
+
+      setTranslateExtent(prev => {
+        if (prev[0][0] === newExtent[0][0] && prev[1][0] === newExtent[1][0]) return prev;
+        return newExtent;
+      });
     };
 
     updateMinZoom();
     window.addEventListener('resize', updateMinZoom);
     return () => window.removeEventListener('resize', updateMinZoom);
-  }, [nodes]);
+  }, [treeBounds]);
 
   const nodeTypes = useMemo(() => ({ familyMember: FamilyNode, union: UnionNode }), []);
   const edgeTypes = useMemo(() => ({ family: FamilyEdge }), []);
