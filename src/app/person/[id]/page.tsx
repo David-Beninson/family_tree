@@ -23,7 +23,9 @@ import {
   Save,
   X,
   User,
-  MessageCircle
+  MessageCircle,
+  Share2,
+  Check
 } from 'lucide-react';
 
 export default function PersonPage() {
@@ -37,6 +39,7 @@ export default function PersonPage() {
   const [isEditConfirmOpen, setIsEditConfirmOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Person | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   if (!person) {
     return (
@@ -84,6 +87,27 @@ export default function PersonPage() {
     setFormData(person);
     setIsEditConfirmOpen(false);
     setIsEditing(true);
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    const shareData = {
+      title: `הכרטיס של ${person.fullName} - עץ משפחה`,
+      text: `צפו בכרטיס המלא של ${person.fullName}`,
+      url: url,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(url);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      }
+    } catch (err) {
+      console.log('Share failed or cancelled', err);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,12 +257,21 @@ export default function PersonPage() {
               </button>
             </>
           ) : (
-            <button
-              onClick={openEditConfirm}
-              className={`flex items-center justify-center gap-2 px-6 py-2 ${theme.btnPrimary} text-white rounded-full shadow-md transition-all hover:-translate-y-0.5 font-medium text-sm`}
-            >
-              <Edit2 className="w-4 h-4" /> ערוך כרטיס
-            </button>
+            <>
+              <button 
+                onClick={handleShare}
+                className={`flex items-center justify-center gap-2 px-5 py-2 bg-white text-stone-600 hover:text-[#2c1e14] border border-stone-200 rounded-full shadow-sm transition-all hover:bg-stone-50 font-medium text-sm w-[130px]`}
+              >
+                {isCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Share2 className="w-4 h-4" />}
+                {isCopied ? 'הקישור הועתק!' : 'שתף כרטיס'}
+              </button>
+              <button 
+                onClick={openEditConfirm}
+                className={`flex items-center justify-center gap-2 px-6 py-2 ${theme.btnPrimary} text-white rounded-full shadow-md transition-all hover:-translate-y-0.5 font-medium text-sm`}
+              >
+                <Edit2 className="w-4 h-4" /> ערוך כרטיס
+              </button>
+            </>
           )}
         </div>
       </div>

@@ -1,20 +1,39 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import MegaTree from '../components/canvas/MegaTree';
 import { useFamilyStore } from '../lib/store';
-import { Share2, UserPlus } from 'lucide-react';
+import { Share2, UserPlus, Check } from 'lucide-react';
 import AddFamilyMemberDrawer from '../components/canvas/AddFamilyMemberDrawer';
 
 export default function Home() {
   const { rebuildGraph, openAddDrawer } = useFamilyStore();
 
+  const [isCopied, setIsCopied] = useState(false);
+
   useEffect(() => {
     rebuildGraph();
   }, [rebuildGraph]);
 
-  const handleShare = () => {
-    console.log('Share feature coming soon...');
+  const handleShare = async () => {
+    const url = window.location.href;
+    const shareData = {
+      title: 'Family Roots - עץ משפחה',
+      text: 'בואו לראות את עץ המשפחה שלנו!',
+      url: url,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(url);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      }
+    } catch (err) {
+      console.log('Share failed or cancelled', err);
+    }
   };
 
   return (
@@ -28,11 +47,11 @@ export default function Home() {
 
         <div className="flex items-center gap-3 pointer-events-auto">
           <button
-            className="flex items-center gap-2 px-4 py-3 bg-white/80 backdrop-blur-md border border-stone-100 rounded-full text-stone-600 hover:text-wood-dark shadow-sm transition-all hover:border-stone-200 font-medium text-sm"
+            className="flex items-center gap-2 px-4 py-3 bg-white/80 backdrop-blur-md border border-stone-100 rounded-full text-stone-600 hover:text-wood-dark shadow-sm transition-all hover:border-stone-200 font-medium text-sm w-[120px] justify-center"
             onClick={handleShare}
           >
-            <Share2 className="w-4 h-4" />
-            שתף עץ
+            {isCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Share2 className="w-4 h-4" />}
+            {isCopied ? 'הועתק!' : 'שתף עץ'}
           </button>
         </div>
       </header>
