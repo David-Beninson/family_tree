@@ -13,21 +13,21 @@ import { Person, Union, PersonUnionLink, AddContext } from './types';
 import { initialPersons, initialUnions, initialLinks } from './mockData';
 import { buildGraphLayout, calculateHubPosition } from './layoutEngine';
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ------------------------------------------------------------------
 
-/** יוצר ID ייחודי מבוסס timestamp + random */
+/** Generates a unique ID based on timestamp and random string */
 function uid(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// ─── טיפוסים לטופס ההוספה ───────────────────────────────────────────────────
+// --- Add Form Types -----------------------------------------------------------
 
 export interface PersonFormData {
   fullName: string;
   birthYear: number;
   gender: 'male' | 'female' | 'other';
   isAlive: boolean;
-  // extended fields — all optional
+  // Extended optional fields
   maidenName?: string;
   birthDate?: string;
   birthPlace?: string;
@@ -42,20 +42,20 @@ export interface PersonFormData {
   occupation?: string;
   bio?: string;
   socialLinks?: { facebook?: string; instagram?: string; linkedin?: string };
-  /** אם הגיע מה-autocomplete — ID של אדם קיים */
+  /** If selected from autocomplete, references an existing person ID */
   existingPersonId?: string;
 }
 
 export interface AddFamilyMemberPayload {
   primary: PersonFormData;
-  /** רלוונטי רק ב-add_partner ו-add_parent */
+  /** Relevant only for add_partner and add_parent */
   unionStatus?: Union['status'];
   unionMarriageYear?: number;
-  /** רלוונטי רק ב-add_parent: הורה שני (אופציונלי) */
+  /** Relevant only for add_parent: The second parent (optional) */
   secondParent?: PersonFormData;
 }
 
-// ─── State ────────────────────────────────────────────────────────────────────
+// --- State --------------------------------------------------------------------
 
 const initialGraph = buildGraphLayout(initialPersons, initialUnions, initialLinks);
 
@@ -67,9 +67,9 @@ interface FamilyState {
   links: PersonUnionLink[];
   focusUnionId: string | undefined;
 
-  /** האם חלון ההוספה פתוח */
+  /** Controls drawer visibility */
   addDrawerOpen: boolean;
-  /** הקשר שפתח את חלון ההוספה */
+  /** Context tracking what action opened the drawer */
   addContext: AddContext | null;
 
   onNodesChange: OnNodesChange;
@@ -88,7 +88,7 @@ interface FamilyState {
   setHighlightedNode: (id: string | null) => void;
 }
 
-// ─── Store ────────────────────────────────────────────────────────────────────
+// --- Store --------------------------------------------------------------------
 
 export const useFamilyStore = create<FamilyState>((set, get) => ({
   highlightedNodeId: null,
@@ -102,7 +102,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
   addDrawerOpen: false,
   addContext: null,
 
-  // ── node/edge handlers ──────────────────────────────────────────────────────
+  // --- Node / Edge Handlers ---------------------------------------------------
   onNodesChange: (changes) => {
     set({ nodes: applyNodeChanges(changes, get().nodes) });
 
@@ -155,11 +155,11 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
   updateUnions: (newUnions) => { set({ unions: newUnions }); get().rebuildGraph(); },
   updateLinks: (newLinks) => { set({ links: newLinks }); get().rebuildGraph(); },
 
-  // ── drawer ──────────────────────────────────────────────────────────────────
+  // --- Drawer -----------------------------------------------------------------
   openAddDrawer: (ctx) => set({ addDrawerOpen: true, addContext: ctx }),
   closeAddDrawer: () => set({ addDrawerOpen: false, addContext: null }),
 
-  // ── הלוגיקה המרכזית ─────────────────────────────────────────────────────────
+  // --- Core Business Logic ----------------------------------------------------
   addFamilyMember: (payload) => {
     const { persons, unions, links, addContext } = get();
 
@@ -167,7 +167,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     let newUnions = [...unions];
     let newLinks = [...links];
 
-    /** יוצר Person חדש ומוסיף לרשימה, אלא אם הגיע existingPersonId */
+    /** Creates a new Person, unless an existingPersonId is provided */
     const resolvePerson = (form: PersonFormData): string => {
       if (form.existingPersonId) return form.existingPersonId;
       const newPerson: Person = {
@@ -197,7 +197,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
 
     if (!addContext) return;
 
-    // ── תרחיש: הוספת בן/בת זוג ───────────────────────────────────────────────
+    // --- Scenario: Add Partner ------------------------------------------------
     if (addContext.action === 'add_partner') {
       const sourceId = addContext.sourcePersonId;
       const newId = resolvePerson(payload.primary);
@@ -211,18 +211,18 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       newLinks.push({ id: uid('link'), personId: newId, unionId: newUnion.id, role: 'partner' });
     }
 
-    // ── תרחיש: הוספת ילד ────────────────────────────────────────────────────
+    // --- Scenario: Add Child --------------------------------------------------
     else if (addContext.action === 'add_child') {
       const newId = resolvePerson(payload.primary);
       newLinks.push({ id: uid('link'), personId: newId, unionId: addContext.sourceUnionId, role: 'child' });
     }
 
-    // ── תרחיש: הוספת הורה/ים ────────────────────────────────────────────────
+    // --- Scenario: Add Parent(s) ----------------------------------------------
     else if (addContext.action === 'add_parent') {
       const childId = addContext.sourcePersonId;
       const parent1Id = resolvePerson(payload.primary);
 
-      // יצירת union (גם אם הורה שני חסר — עדיין ניצור union עם הורה בודד)
+      // Create a union even if there is only one known parent
       const newUnion: Union = {
         id: uid('union'),
         status: payload.unionStatus ?? 'married',
@@ -231,20 +231,20 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       newUnions.push(newUnion);
       newLinks.push({ id: uid('link'), personId: parent1Id, unionId: newUnion.id, role: 'partner' });
 
-      // הורה שני — אופציונלי
+      // Process the second parent if provided
       if (payload.secondParent && (payload.secondParent.existingPersonId || payload.secondParent.fullName.trim())) {
         const parent2Id = resolvePerson(payload.secondParent);
         newLinks.push({ id: uid('link'), personId: parent2Id, unionId: newUnion.id, role: 'partner' });
       }
 
-      // קישור הילד ל-union החדש
+      // Link the child to the newly created union
       newLinks.push({ id: uid('link'), personId: childId, unionId: newUnion.id, role: 'child' });
     }
 
-    // ── תרחיש: הוספת שורש חדש ──────────────────────────────────────────────
+    // --- Scenario: Add Root Node ----------------------------------------------
     else if (addContext.action === 'add_root') {
       resolvePerson(payload.primary);
-      // אין union ואין links — האדם יצוף עצמאית בעץ
+      // The person floats independently without any links or unions
     }
 
     set({ persons: newPersons, unions: newUnions, links: newLinks });

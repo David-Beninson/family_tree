@@ -1,11 +1,11 @@
-import { Node, Position } from '@xyflow/react';
+import { Node } from '@xyflow/react';
 
 export type Person = {
   id: string;
   fullName: string;
   maidenName?: string;
 
-  // ── תאריכים ומיקומים ──────────────────────────────────────────
+  // --- Dates and Locations ---
   birthYear: number;
   birthDate?: string;
   birthPlace?: string;
@@ -19,7 +19,7 @@ export type Person = {
   gender: 'male' | 'female' | 'other';
   photoUrl?: string;
 
-  // ── פרטי התקשרות (רלוונטי לאנשים חיים) ──────────────────────
+  // --- Contact Information (for living persons) ---
   phoneNumber?: string;
   email?: string;
   address?: {
@@ -28,11 +28,11 @@ export type Person = {
     street?: string;
   };
 
-  // ── ביוגרפיה ─────────────────────────────────────────────────
+  // --- Biography ---
   occupation?: string;
   bio?: string;
 
-  // ── רשתות חברתיות ────────────────────────────────────────────
+  // --- Social Links ---
   socialLinks?: {
     facebook?: string;
     instagram?: string;
@@ -47,7 +47,7 @@ export type Union = {
   divorceYear?: number;
 };
 
-// ── הוספת אדם חדש לעץ ────────────────────────────────────────────
+// --- Tree Contexts ---
 
 export type AddContext =
   | { action: 'add_partner'; sourcePersonId: string }
@@ -62,18 +62,11 @@ export type PersonUnionLink = {
   role: 'partner' | 'child';
 };
 
-export type BudConfig = {
-  position: Position;
-  direction: 'up' | 'down' | 'left' | 'right';
-  actionText: string;
-};
-
 export type FamilyMemberNode = Node<{
   person: Person;
   isMarried?: boolean;
   parentCount?: number;
   isOrphan?: boolean;
-  buds?: BudConfig[];
 }, 'familyMember'>;
 
 export type BoundingBox = {

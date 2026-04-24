@@ -31,9 +31,9 @@ export default function FamilyEdge({
       path={edgePath}
       markerEnd={markerEnd}
       style={{
-        ...style,
         strokeWidth: 2,
         stroke: '#888',
+        ...style,
       }}
     />
   );

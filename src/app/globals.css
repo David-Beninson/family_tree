@@ -6,6 +6,7 @@
   --color-wood-light: #433422;
   --color-accent-amber: #d4a373;
   --color-leaf-muted: #6b705c;
+  --font-sans: var(--font-rubik), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 :root {
@@ -16,8 +17,6 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  overflow: hidden;
 }
 
 /* React Flow customizations */

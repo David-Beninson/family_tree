@@ -19,7 +19,6 @@ export default function SearchBar() {
     const containerRef = useRef<HTMLDivElement>(null);
     const { setCenter, getNode } = useReactFlow();
 
-    // מביאים גם את פונקציית ההדגשה מה-Store
     const { persons, nodes, setHighlightedNode } = useFamilyStore();
 
     const handleSearch = useCallback(
@@ -30,16 +29,22 @@ export default function SearchBar() {
                 setIsOpen(false);
                 return;
             }
+            
             const q = value.trim().toLowerCase();
             const matched: SearchResult[] = [];
+            
+            // Search logic with early break optimization
             for (const person of persons) {
+                if (matched.length >= 8) break;
+
                 const haystack = [
                     person.fullName,
-                    person.maidenName ?? '',
-                    person.occupation ?? '',
-                    String(person.birthYear),
-                    person.birthPlace ?? '',
-                ].join(' ').toLowerCase();
+                    person.maidenName,
+                    person.occupation,
+                    person.birthYear,
+                    person.birthPlace,
+                ].filter(Boolean).join(' ').toLowerCase();
+
                 if (haystack.includes(q)) {
                     const rfNode = nodes.find((n) => n.id === person.id);
                     if (rfNode) {
@@ -47,7 +52,8 @@ export default function SearchBar() {
                     }
                 }
             }
-            setResults(matched.slice(0, 8));
+            
+            setResults(matched);
             setIsOpen(matched.length > 0);
         },
         [persons, nodes]
@@ -57,6 +63,7 @@ export default function SearchBar() {
         (nodeId: string, personName: string) => {
             const node = getNode(nodeId);
             if (!node) return;
+            
             const x = node.position.x + (node.measured?.width ?? 280) / 2;
             const y = node.position.y + (node.measured?.height ?? 90) / 2;
 
@@ -64,10 +71,8 @@ export default function SearchBar() {
             setIsOpen(false);
             setQuery(personName);
 
-            // מדליקים את ההילה דרך ה-Store
+            // Trigger temporary highlight effect
             setHighlightedNode(nodeId);
-
-            // מכבים את ההילה אחרי 2.5 שניות
             setTimeout(() => setHighlightedNode(null), 2500);
         },
         [getNode, setCenter, setHighlightedNode]
@@ -91,10 +96,8 @@ export default function SearchBar() {
         inputRef.current?.focus();
     };
 
-    const isMale = (person: Person) => person.gender === 'male';
-
     return (
-        <div ref={containerRef} className="relative z-20" style={{ width: 340 }}>
+        <div ref={containerRef} className="relative z-20 w-[340px]">
             <div className="relative group">
                 <Search
                     className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-amber-500 transition-colors pointer-events-none"
@@ -124,8 +127,7 @@ export default function SearchBar() {
 
             {isOpen && results.length > 0 && (
                 <div
-                    className="absolute top-full mt-2 w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-stone-100 overflow-hidden"
-                    style={{ maxHeight: 320, overflowY: 'auto' }}
+                    className="absolute top-full mt-2 w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-stone-100 overflow-hidden max-h-[320px] overflow-y-auto"
                     dir="rtl"
                 >
                     <div className="px-3 py-2 border-b border-stone-100">
@@ -135,27 +137,28 @@ export default function SearchBar() {
                     </div>
                     <ul>
                         {results.map(({ person, nodeId }) => {
-                            const male = isMale(person);
+                            const isMale = person.gender === 'male';
                             const dateText = person.isAlive
                                 ? `נולד ${person.birthYear}`
                                 : `${person.birthYear} – ${person.deathYear ?? '?'}`;
+                            
                             const initials = person.fullName
                                 .split(' ')
-                                .filter((n) => n.length > 0)
+                                .filter(Boolean)
                                 .map((n) => n[0])
                                 .slice(0, 2)
                                 .join('')
                                 .toUpperCase();
+                                
+                            const theme = isMale ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-rose-700';
+
                             return (
                                 <li key={nodeId}>
                                     <button
                                         onClick={() => navigateTo(nodeId, person.fullName)}
                                         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-amber-50 transition-colors text-right group/item"
                                     >
-                                        <div
-                                            className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm
-                      ${male ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-rose-700'}`}
-                                        >
+                                        <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm ${theme}`}>
                                             {person.photoUrl ? (
                                                 <img
                                                     src={person.photoUrl}

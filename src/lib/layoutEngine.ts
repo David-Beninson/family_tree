@@ -1,5 +1,5 @@
-import { Edge, Node, Position } from '@xyflow/react';
-import { Person, Union, PersonUnionLink, BudConfig } from './types';
+import { Edge, Node } from '@xyflow/react';
+import { Person, Union, PersonUnionLink } from './types';
 
 export const SPACING = {
     CARD_WIDTH: 280,
@@ -54,10 +54,10 @@ export function buildGraphLayout(
     const getParentUnion = (pId: string) => links.find(l => l.personId === pId && l.role === 'child')?.unionId;
 
     // --- PASS 1: Bottom-Up Width Calculation ---
-    // שתי פונקציות רקורסיביות שמחשבות רוחב נכון מלמטה למעלה.
-    // כל union יודע כמה מקום הוא צריך בשביל עצמו + כל הצאצאים שלו.
+    // Two recursive functions calculate the correct width from bottom to top.
+    // Each union reserves enough space for itself + all its descendants.
 
-    // getUnionSubtreeWidth: כמה רוחב דורש Union אחד (זוג + כל ילדיהם + כל נישואיהם)
+    // getUnionSubtreeWidth: How much width a single union needs (couple + children + marriages)
     const getUnionSubtreeWidth = (uId: string): number => {
         if (unionSubtreeWidths[uId] !== undefined) return unionSubtreeWidths[uId];
 
@@ -68,7 +68,7 @@ export function buildGraphLayout(
             return COUPLE_WIDTH;
         }
 
-        // רוחב כולל הילדים = סכום רוחב כל ילד + מרווחים
+        // Total width of children = sum of each child's width + gaps
         const childrenTotalWidth =
             children.reduce((sum, c) => sum + getPersonSubtreeWidth(c.id), 0)
             + (children.length - 1) * SPACING.SIBLING_GAP;
@@ -77,7 +77,7 @@ export function buildGraphLayout(
         return unionSubtreeWidths[uId];
     };
 
-    // getPersonSubtreeWidth: כמה רוחב דורש אדם (כולל כל הנישואין שלו ממוקמים זה לצד זה)
+    // getPersonSubtreeWidth: How much width a person needs (including side-by-side marriages)
     const getPersonSubtreeWidth = (pId: string): number => {
         if (subtreeWidths[pId] !== undefined) return subtreeWidths[pId];
 
@@ -88,7 +88,7 @@ export function buildGraphLayout(
             return SPACING.CARD_WIDTH;
         }
 
-        // כל נישואין של האדם יושבים זה לצד זה — סכום רוחב כולם
+        // All marriages for this person sit side-by-side
         const totalWidth = myUnions.reduce(
             (sum, link, idx) => sum + getUnionSubtreeWidth(link.unionId) + (idx > 0 ? SPACING.SIBLING_GAP : 0),
             0
@@ -98,7 +98,7 @@ export function buildGraphLayout(
         return totalWidth;
     };
 
-    // הפעל על כולם לפני ההצבה
+    // Initialize all before placement
     persons.forEach(p => getPersonSubtreeWidth(p.id));
     unions.forEach(u => getUnionSubtreeWidth(u.id));
 
@@ -192,7 +192,7 @@ export function buildGraphLayout(
 
         let finalHubX = hubX;
 
-        // 2. עיגון ה-Hub
+        // Hub Anchoring
         if (context) {
             finalHubX = hubX;
         } else {
@@ -236,7 +236,7 @@ export function buildGraphLayout(
         handlePivot(pLeftId, false);
         handlePivot(pRightId, true);
 
-        // 5. הוספת הורים (Pass 3 רקורסיבי)
+        // Recursive Pass 3 for parents
         [pLeftId, pRightId].forEach(pId => {
             const parentUId = getParentUnion(pId);
             if (parentUId && !visitedHubs.has(parentUId)) {
@@ -263,7 +263,7 @@ export function buildGraphLayout(
 
                     placeUnion(primaryUnionId, primaryHubX, Y + SPACING.LEVEL_Y, { type: 'child', sourceId: child.id });
 
-                    // Pivot unions — ממשיכים מהקצה הימני של ה-union הראשון
+                    // Pivot unions: continue from the right edge of the primary union
                     let pivotStartX = currentChildX + primaryUnionWidth;
                     childUnions.slice(1).forEach(link => {
                         if (visitedHubs.has(link.unionId)) return;
@@ -307,7 +307,6 @@ export function buildGraphLayout(
     }
 
     // --- FINAL NODE CONVERSION ---
-    const currentYear = new Date().getFullYear();
     persons.forEach(p => {
         if (!positions[p.id]) return;
 
@@ -318,13 +317,6 @@ export function buildGraphLayout(
         });
 
         const parentCount = getParentUnion(p.id) ? 2 : 0;
-        const isAdult = p.isAlive ? (currentYear - (p.birthYear || 0) >= 18) : true;
-        const buds: BudConfig[] = [];
-
-        if (parentCount < 2) buds.push({ position: Position.Bottom, direction: 'down', actionText: 'הורה' });
-        if (!hasActiveSpouse && isAdult) {
-            buds.push({ position: Position.Left, direction: 'left', actionText: 'בן/בת זוג' });
-        }
 
         rfNodes.push({
             id: p.id,
@@ -333,7 +325,7 @@ export function buildGraphLayout(
             width: SPACING.CARD_WIDTH,
             height: SPACING.CARD_HEIGHT,
             draggable: false,
-            data: { person: p, isMarried: hasActiveSpouse, parentCount, buds }
+            data: { person: p, isMarried: hasActiveSpouse, parentCount }
         });
     });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useEffect, useCallback, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -9,7 +9,9 @@ import {
   Position,
   Panel,
   useViewport,
-  CoordinateExtent
+  CoordinateExtent,
+  NodeProps,
+  Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { FamilyNode } from './FamilyNode';
@@ -19,7 +21,7 @@ import SearchBar from './SearchBar';
 
 function ConditionalMiniMap() {
   const { zoom } = useViewport();
-  // הצג רק אם עשינו זום אין משמעותי (מעל 0.6)
+  // Only show minimap when reasonably zoomed in (zoom > 0.6)
   if (zoom < 0.6) return null;
   
   return (
@@ -31,14 +33,18 @@ function ConditionalMiniMap() {
   );
 }
 
-const UnionNode = ({ data }: any) => {
+type UnionNodeData = Node<{ unionId: string }, 'union'>;
+
+const UnionNode = ({ data }: NodeProps<UnionNodeData>) => {
   const { openAddDrawer } = useFamilyStore();
+  
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (data?.unionId) {
       openAddDrawer({ action: 'add_child', sourceUnionId: data.unionId });
     }
   };
+
   return (
     <div
       onClick={handleClick}
@@ -56,12 +62,12 @@ const UnionNode = ({ data }: any) => {
 
 export default function MegaTree() {
   const { nodes, edges, onNodesChange, onEdgesChange, rebuildGraph, openAddDrawer } = useFamilyStore();
-  const [minZoom, setMinZoom] = React.useState(0.05);
-  const [translateExtent, setTranslateExtent] = React.useState<CoordinateExtent>([[-3000, -3000], [3000, 3000]]);
+  const [minZoom, setMinZoom] = useState(0.05);
+  const [translateExtent, setTranslateExtent] = useState<CoordinateExtent>([[-3000, -3000], [3000, 3000]]);
 
-  React.useEffect(() => { rebuildGraph(); }, [rebuildGraph]);
+  useEffect(() => { rebuildGraph(); }, [rebuildGraph]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (nodes.length === 0) return;
     
     const updateMinZoom = () => {
@@ -76,7 +82,7 @@ export default function MegaTree() {
         maxY = Math.max(maxY, n.position.y + h);
       });
       
-      // הוספת שוליים נושמים סביב הגרף לחישוב הזום והגבולות
+      // Add breathing room padding around the graph bounds
       const padding = 200;
       const graphWidth = (maxX - minX) + padding * 2; 
       const graphHeight = (maxY - minY) + padding * 2;
@@ -88,13 +94,13 @@ export default function MegaTree() {
       const scaleY = vh / graphHeight;
       const exactFitScale = Math.min(scaleX, scaleY);
       
-      // אנו מגבילים את המינימום זום המקסימלי ל-0.8 כדי שעץ קטן לא יהיה תקוע על זום ענק
+      // Cap the calculated min zoom to 0.8 so small trees aren't overly zoomed
       const calculatedMin = Math.min(exactFitScale, 0.8);
       
-      // מגבלת מינימום קשיחה של 0.05
+      // Hard min zoom limit of 0.05
       setMinZoom(Math.max(calculatedMin, 0.05));
 
-      // הגבלת הגלילה (Panning) כך שלא יהיה ניתן לגלול את העץ אל מחוץ למסך
+      // Restrict panning so the tree cannot be scrolled off-screen
       setTranslateExtent([
         [minX - padding, minY - padding],
         [maxX + padding, maxY + padding]
@@ -106,10 +112,10 @@ export default function MegaTree() {
     return () => window.removeEventListener('resize', updateMinZoom);
   }, [nodes]);
 
-  const nodeTypes = React.useMemo(() => ({ familyMember: FamilyNode, union: UnionNode }), []);
-  const edgeTypes = React.useMemo(() => ({ family: FamilyEdge }), []);
+  const nodeTypes = useMemo(() => ({ familyMember: FamilyNode, union: UnionNode }), []);
+  const edgeTypes = useMemo(() => ({ family: FamilyEdge }), []);
 
-  const onConnectEnd = React.useCallback(
+  const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: any) => {
       const state = connectionState?.[0] || connectionState;
       if (state && !state.isValid && state.fromHandle) {

@@ -8,11 +8,11 @@ import { Person, Union } from '../../lib/types';
 const CY = new Date().getFullYear();
 const EMPTY: PersonFormData = { fullName: '', birthYear: 1980, gender: 'female', isAlive: true };
 
-// ── Tabs ─────────────────────────────────────────────────────────────────────
+// --- Tabs ---------------------------------------------------------------------
 const TABS = ['בסיסי', 'פרטי קשר', 'ביוגרפיה'] as const;
 type Tab = typeof TABS[number];
 
-// ── Autocomplete ─────────────────────────────────────────────────────────────
+// --- Autocomplete -------------------------------------------------------------
 function Autocomplete({ value, onChange, onSelect, onClear, persons, locked }: {
   value: string; onChange: (v: string) => void;
   onSelect: (p: Person) => void; onClear: () => void;
@@ -60,7 +60,7 @@ function Autocomplete({ value, onChange, onSelect, onClear, persons, locked }: {
   );
 }
 
-// ── Field wrapper ─────────────────────────────────────────────────────────────
+// --- Field Wrappers -----------------------------------------------------------
 const Lbl = ({ children }: { children: React.ReactNode }) => (
   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">{children}</label>
 );
@@ -71,15 +71,15 @@ const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
   <textarea {...props} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 bg-white resize-none" />
 );
 
-// ── PersonForm ────────────────────────────────────────────────────────────────
+// --- Person Form --------------------------------------------------------------
 function PersonForm({ form, onChange, persons, tab }: {
-  form: PersonFormData & Record<string, any>;
-  onChange: (f: any) => void;
+  form: PersonFormData;
+  onChange: (f: PersonFormData) => void;
   persons: Person[];
   tab: Tab;
 }) {
   const locked = !!form.existingPersonId;
-  const set = (k: string, v: any) => onChange({ ...form, [k]: v });
+  const set = <K extends keyof PersonFormData>(k: K, v: PersonFormData[K]) => onChange({ ...form, [k]: v });
 
   const handleSelect = (p: Person) => onChange({
     ...form, fullName: p.fullName, birthYear: p.birthYear,
@@ -217,7 +217,7 @@ function PersonForm({ form, onChange, persons, tab }: {
     </div>
   );
 
-  // ביוגרפיה
+  // --- Biography ---
   return (
     <div className="flex flex-col gap-3">
       <div>
@@ -232,7 +232,7 @@ function PersonForm({ form, onChange, persons, tab }: {
   );
 }
 
-// ── Main Drawer ───────────────────────────────────────────────────────────────
+// --- Main Drawer --------------------------------------------------------------
 export default function AddFamilyMemberDrawer() {
   const { addDrawerOpen, addContext, persons, unions, closeAddDrawer, addFamilyMember } = useFamilyStore();
 
@@ -240,8 +240,8 @@ export default function AddFamilyMemberDrawer() {
   const sourceUnion  = addContext && 'sourceUnionId'  in addContext ? unions.find(u => u.id === addContext.sourceUnionId)   : undefined;
 
   const [tab, setTab] = useState<Tab>('בסיסי');
-  const [primary, setPrimary] = useState<any>({ ...EMPTY });
-  const [secondParent, setSecondParent] = useState<any>({ ...EMPTY, gender: 'male' });
+  const [primary, setPrimary] = useState<PersonFormData>({ ...EMPTY });
+  const [secondParent, setSecondParent] = useState<PersonFormData>({ ...EMPTY, gender: 'male' });
   const [showSecond, setShowSecond] = useState(false);
   const [uStatus, setUStatus] = useState<Union['status']>('married');
   const [uYear, setUYear] = useState(CY);
@@ -256,7 +256,7 @@ export default function AddFamilyMemberDrawer() {
     setTab('בסיסי');
     setUStatus('married');
     setUYear(sourceUnion?.marriageYear ?? CY);
-  }, [addDrawerOpen]); // eslint-disable-line
+  }, [addDrawerOpen, sourcePerson, sourceUnion]);
 
   const title = !addContext ? 'הוסף אדם' :
     addContext.action === 'add_partner' ? `הוסף בן/בת זוג ל${sourcePerson?.fullName ?? ''}` :
@@ -304,7 +304,7 @@ export default function AddFamilyMemberDrawer() {
         <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
           <PersonForm form={primary} onChange={setPrimary} persons={persons} tab={tab} />
 
-          {/* Union fields — only on basic tab */}
+          {/* Union fields */}
           {tab === 'בסיסי' && showUnionFields && (
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">פרטי הקשר</p>
@@ -330,7 +330,7 @@ export default function AddFamilyMemberDrawer() {
             </div>
           )}
 
-          {/* Second parent — only add_parent + basic tab */}
+          {/* Second parent */}
           {tab === 'בסיסי' && addContext?.action === 'add_parent' && (
             showSecond
               ? (

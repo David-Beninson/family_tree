@@ -13,58 +13,63 @@ export type FamilyMemberNode = Node<{
 }, 'familyMember'>;
 
 export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
-  const { person } = data;
-  const isMarried = data.isMarried;
-  const parentCount = (data.parentCount) || 0;
-
-  // אנחנו מוסיפים לפה את highlightedNodeId
+  const { person, isMarried = false, parentCount = 0 } = data;
   const { links, setFocusUnion, openAddDrawer, highlightedNodeId } = useFamilyStore();
 
   const isMale = person.gender === 'male';
   const currentYear = new Date().getFullYear();
-  const isAdult = person.isAlive ? (currentYear - person.birthYear >= 18) : true;
-
-  // בודקים אם הכרטיסייה הנוכחית היא זו שמחפשים עכשיו
+  // Safe calculation in case birthYear is missing
+  const isAdult = person.isAlive ? (currentYear - (person.birthYear || currentYear) >= 18) : true;
   const isHighlighted = highlightedNodeId === id;
 
-  const colorClass = isMale
-    ? 'bg-blue-100 text-blue-900 border-blue-200'
-    : 'bg-pink-100 text-rose-900 border-pink-200';
+  // Theme definition for consistent styling based on gender
+  const theme = isMale ? {
+    bg: 'bg-blue-100',
+    text: 'text-blue-900',
+    border: 'border-blue-200',
+  } : {
+    bg: 'bg-pink-100',
+    text: 'text-rose-900',
+    border: 'border-pink-200',
+  };
 
-  // יצירת קלאסים של ההילה - הילה כתומה/זהובה יפה שפועמת
-  const highlightClasses = isHighlighted
-    ? 'ring-4 ring-amber-400 shadow-[0_0_30px_rgba(251,191,36,0.6)] animate-pulse border-amber-400 z-50'
-    : 'shadow-md hover:shadow-lg border-slate-200';
+  // Resolve container background cleanly
+  const containerBg = isHighlighted ? 'bg-white' : theme.bg;
+
+  const containerClasses = [
+    'relative w-[280px] h-[90px] rounded-2xl border flex flex-row items-center p-3 transition-all duration-300',
+    containerBg,
+    isHighlighted 
+      ? 'ring-4 ring-amber-400 shadow-[0_0_30px_rgba(251,191,36,0.6)] animate-pulse border-amber-400 z-50'
+      : 'shadow-md hover:shadow-lg border-slate-200'
+  ].join(' ');
 
   const initials = person.fullName
     .split(' ')
-    .filter(n => n.length > 0)
+    .filter(Boolean)
     .map(n => n[0])
     .slice(0, 2)
     .join('')
     .toUpperCase();
 
   const dateText = person.isAlive
-    ? `${person.birthYear}`
-    : `${person.deathYear} - ${person.birthYear}`;
+    ? `${person.birthYear || ''}`
+    : `${person.deathYear || ''} - ${person.birthYear || ''}`;
 
   const handleFocus = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const partnerLink = links.find(l => l.personId === person.id && l.role === 'partner');
-    const childLink = links.find(l => l.personId === person.id && l.role === 'child');
+    // Prioritize focusing on partner union, fallback to child union
+    const unionLink = 
+      links.find(l => l.personId === person.id && l.role === 'partner') ||
+      links.find(l => l.personId === person.id && l.role === 'child');
 
-    if (partnerLink) setFocusUnion(partnerLink.unionId);
-    else if (childLink) setFocusUnion(childLink.unionId);
+    if (unionLink) setFocusUnion(unionLink.unionId);
     else window.alert('לאדם זה אין משפחה מקושרת למיקוד');
   };
 
   const handleOpenCard = () => {
     window.alert(`פעולה זו פותחת את הכרטיס של: ${person.fullName}`);
   };
-
-  const showParentTop = parentCount < 2;
-  const showSpouseRight = !isMale && !isMarried && isAdult;
-  const showSpouseLeft = isMale && !isMarried && isAdult;
 
   const handleAddParent = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -76,14 +81,15 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
     openAddDrawer({ action: 'add_partner', sourcePersonId: person.id });
   };
 
+  // Node connection handles display logic
+  const showParentTop = parentCount < 2;
+  const showSpouseRight = !isMale && !isMarried && isAdult;
+  const showSpouseLeft = isMale && !isMarried && isAdult;
+
   return (
-    <div
-      // כאן אנחנו מכניסים את ה-highlightClasses במקום הצל הרגיל
-      className={`relative w-[280px] h-[90px] rounded-2xl border bg-white flex flex-row items-center p-3 transition-all duration-300 ${highlightClasses} ${!isHighlighted ? colorClass.split(' ')[0] : ''}`}
-      dir="ltr"
-    >
-      {/* Photo / initials */}
-      <div className={`relative h-[65px] w-[65px] rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm mr-4 ${colorClass.split(' ')[0]}`}>
+    <div className={containerClasses} dir="ltr">
+      {/* Avatar */}
+      <div className={`relative h-[65px] w-[65px] rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm mr-4 ${theme.bg}`}>
         {person.photoUrl ? (
           <img src={person.photoUrl} alt={person.fullName} className="w-full h-full object-cover" />
         ) : (
@@ -91,7 +97,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
         )}
       </div>
 
-      {/* Content */}
+      {/* Details */}
       <div className="flex flex-col flex-grow justify-center overflow-hidden" dir="rtl">
         <h3 className="font-bold text-[16px] truncate text-slate-800 leading-tight">
           {person.fullName}
@@ -101,6 +107,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
         </span>
       </div>
 
+      {/* Actions */}
       <div className="flex flex-row gap-1">
         <button
           onClick={handleFocus}
@@ -112,13 +119,14 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
 
         <button
           onClick={handleOpenCard}
+          title="פתח כרטיס אדם"
           className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
       </div>
 
-      {/* === Invisible routing handles === */}
+      {/* Invisible routing handles */}
       <Handle type="source" position={Position.Top} id="top-source" className="opacity-0" />
       <Handle type="target" position={Position.Top} id="top-target" className="opacity-0" />
       <Handle type="source" position={Position.Bottom} id="bottom-source" className="opacity-0" />
@@ -127,9 +135,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
       <Handle type="source" position={Position.Right} id="right-out" className="opacity-0" />
       <Handle type="target" position={Position.Right} id="right-in" className="opacity-0" />
 
-      {/* === Visible bud handles === */}
-
-      {/* Add Parent (Top) */}
+      {/* Interactive bud handles */}
       {showParentTop && (
         <Handle
           type="source" position={Position.Top} id="add-parent"
@@ -139,7 +145,6 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
         />
       )}
 
-      {/* Add Spouse Right (for Female) */}
       {showSpouseRight && (
         <Handle
           type="source" position={Position.Right} id="add-spouse-right"
@@ -149,7 +154,6 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
         />
       )}
 
-      {/* Add Spouse Left (for Male) */}
       {showSpouseLeft && (
         <Handle
           type="source" position={Position.Left} id="add-spouse-left"
@@ -158,7 +162,6 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
           className="w-4 h-4 !bg-pink-400 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10"
         />
       )}
-
     </div>
   );
 });
