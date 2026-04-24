@@ -3,6 +3,7 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps, Node } from '@xyflow/react';
 import { ChevronLeft, Target } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useFamilyStore } from '../../lib/store';
 import { Person } from '../../lib/types';
 
@@ -15,6 +16,7 @@ export type FamilyMemberNode = Node<{
 export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
   const { person, isMarried = false, parentCount = 0 } = data;
   const { links, setFocusUnion, openAddDrawer, highlightedNodeId } = useFamilyStore();
+  const router = useRouter();
 
   const isMale = person.gender === 'male';
   const currentYear = new Date().getFullYear();
@@ -37,7 +39,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
   const containerBg = isHighlighted ? 'bg-white' : theme.bg;
 
   const containerClasses = [
-    'relative w-[280px] h-[90px] rounded-2xl border flex flex-row items-center p-3 transition-all duration-300',
+    'relative w-[280px] h-[90px] rounded-2xl border flex flex-row items-center p-3 transition-all duration-300 cursor-pointer',
     containerBg,
     isHighlighted
       ? 'ring-4 ring-amber-400 shadow-[0_0_30px_rgba(251,191,36,0.6)] animate-pulse border-amber-400 z-50'
@@ -71,9 +73,9 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
     else window.alert('לאדם זה אין משפחה מקושרת למיקוד');
   };
 
-  const handleOpenCard = () => {
-    // TODO: לחבר לפתיחת מודל עריכת פרטי אדם בעתיד
-    window.alert(`פעולה זו פותחת את הכרטיס של: ${person.fullName}`);
+  const handleOpenCard = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    router.push(`/person/${person.id}`);
   };
 
   const handleAddParent = (e: React.MouseEvent) => {
@@ -92,7 +94,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
   const showSpouseLeft = isMale && !isMarried && isAdult; // בני זוג רווקים מקבלים טיפ משמאל
 
   return (
-    <div className={containerClasses} dir="ltr">
+    <div className={containerClasses} dir="ltr" onClick={handleOpenCard}>
       {/* תמונת פרופיל או ראשי תיבות */}
       <div className={`relative h-[65px] w-[65px] rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm mr-4 ${theme.bg}`}>
         {person.photoUrl ? (
