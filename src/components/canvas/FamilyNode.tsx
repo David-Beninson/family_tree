@@ -17,15 +17,24 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
   const isMarried = data.isMarried;
   const parentCount = (data.parentCount) || 0;
 
-  const { links, setFocusUnion, openAddDrawer } = useFamilyStore();
+  // אנחנו מוסיפים לפה את highlightedNodeId
+  const { links, setFocusUnion, openAddDrawer, highlightedNodeId } = useFamilyStore();
 
   const isMale = person.gender === 'male';
   const currentYear = new Date().getFullYear();
   const isAdult = person.isAlive ? (currentYear - person.birthYear >= 18) : true;
 
+  // בודקים אם הכרטיסייה הנוכחית היא זו שמחפשים עכשיו
+  const isHighlighted = highlightedNodeId === id;
+
   const colorClass = isMale
     ? 'bg-blue-100 text-blue-900 border-blue-200'
     : 'bg-pink-100 text-rose-900 border-pink-200';
+
+  // יצירת קלאסים של ההילה - הילה כתומה/זהובה יפה שפועמת
+  const highlightClasses = isHighlighted
+    ? 'ring-4 ring-amber-400 shadow-[0_0_30px_rgba(251,191,36,0.6)] animate-pulse border-amber-400 z-50'
+    : 'shadow-md hover:shadow-lg border-slate-200';
 
   const initials = person.fullName
     .split(' ')
@@ -42,23 +51,21 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
   const handleFocus = (e: React.MouseEvent) => {
     e.stopPropagation();
     const partnerLink = links.find(l => l.personId === person.id && l.role === 'partner');
-    const childLink   = links.find(l => l.personId === person.id && l.role === 'child');
+    const childLink = links.find(l => l.personId === person.id && l.role === 'child');
 
-    if (partnerLink)     setFocusUnion(partnerLink.unionId);
-    else if (childLink)  setFocusUnion(childLink.unionId);
-    else                 window.alert('לאדם זה אין משפחה מקושרת למיקוד');
+    if (partnerLink) setFocusUnion(partnerLink.unionId);
+    else if (childLink) setFocusUnion(childLink.unionId);
+    else window.alert('לאדם זה אין משפחה מקושרת למיקוד');
   };
 
   const handleOpenCard = () => {
     window.alert(`פעולה זו פותחת את הכרטיס של: ${person.fullName}`);
   };
 
-  // תנאים להצגת ניצנים
-  const showParentTop    = parentCount < 2;
-  const showSpouseRight  = !isMale && !isMarried && isAdult;
-  const showSpouseLeft   = isMale  && !isMarried && isAdult;
+  const showParentTop = parentCount < 2;
+  const showSpouseRight = !isMale && !isMarried && isAdult;
+  const showSpouseLeft = isMale && !isMarried && isAdult;
 
-  // handlers לניצנים
   const handleAddParent = (e: React.MouseEvent) => {
     e.stopPropagation();
     openAddDrawer({ action: 'add_parent', sourcePersonId: person.id });
@@ -71,7 +78,8 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
 
   return (
     <div
-      className={`relative w-[280px] h-[90px] rounded-2xl border bg-white flex flex-row items-center p-3 shadow-md hover:shadow-lg transition-transform ${colorClass.replace(/bg-.* border-.*/, 'border-slate-200')}`}
+      // כאן אנחנו מכניסים את ה-highlightClasses במקום הצל הרגיל
+      className={`relative w-[280px] h-[90px] rounded-2xl border bg-white flex flex-row items-center p-3 transition-all duration-300 ${highlightClasses} ${!isHighlighted ? colorClass.split(' ')[0] : ''}`}
       dir="ltr"
     >
       {/* Photo / initials */}
@@ -111,13 +119,13 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
       </div>
 
       {/* === Invisible routing handles === */}
-      <Handle type="source" position={Position.Top}    id="top-source"    className="opacity-0" />
-      <Handle type="target" position={Position.Top}    id="top-target"    className="opacity-0" />
+      <Handle type="source" position={Position.Top} id="top-source" className="opacity-0" />
+      <Handle type="target" position={Position.Top} id="top-target" className="opacity-0" />
       <Handle type="source" position={Position.Bottom} id="bottom-source" className="opacity-0" />
-      <Handle type="source" position={Position.Left}   id="left-out"      className="opacity-0" />
-      <Handle type="target" position={Position.Left}   id="left-in"       className="opacity-0" />
-      <Handle type="source" position={Position.Right}  id="right-out"     className="opacity-0" />
-      <Handle type="target" position={Position.Right}  id="right-in"      className="opacity-0" />
+      <Handle type="source" position={Position.Left} id="left-out" className="opacity-0" />
+      <Handle type="target" position={Position.Left} id="left-in" className="opacity-0" />
+      <Handle type="source" position={Position.Right} id="right-out" className="opacity-0" />
+      <Handle type="target" position={Position.Right} id="right-in" className="opacity-0" />
 
       {/* === Visible bud handles === */}
 

@@ -83,11 +83,16 @@ interface FamilyState {
   openAddDrawer: (ctx: AddContext) => void;
   closeAddDrawer: () => void;
   addFamilyMember: (payload: AddFamilyMemberPayload) => void;
+
+  highlightedNodeId: string | null;
+  setHighlightedNode: (id: string | null) => void;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useFamilyStore = create<FamilyState>((set, get) => ({
+  highlightedNodeId: null,
+  setHighlightedNode: (id) => set({ highlightedNodeId: id }),
   nodes: initialGraph.nodes,
   edges: initialGraph.edges,
   persons: initialPersons,
@@ -147,44 +152,44 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
   },
 
   updatePersons: (newPersons) => { set({ persons: newPersons }); get().rebuildGraph(); },
-  updateUnions:  (newUnions)  => { set({ unions: newUnions   }); get().rebuildGraph(); },
-  updateLinks:   (newLinks)   => { set({ links: newLinks     }); get().rebuildGraph(); },
+  updateUnions: (newUnions) => { set({ unions: newUnions }); get().rebuildGraph(); },
+  updateLinks: (newLinks) => { set({ links: newLinks }); get().rebuildGraph(); },
 
   // ── drawer ──────────────────────────────────────────────────────────────────
-  openAddDrawer:  (ctx) => set({ addDrawerOpen: true,  addContext: ctx }),
-  closeAddDrawer: ()    => set({ addDrawerOpen: false, addContext: null }),
+  openAddDrawer: (ctx) => set({ addDrawerOpen: true, addContext: ctx }),
+  closeAddDrawer: () => set({ addDrawerOpen: false, addContext: null }),
 
   // ── הלוגיקה המרכזית ─────────────────────────────────────────────────────────
   addFamilyMember: (payload) => {
     const { persons, unions, links, addContext } = get();
 
-    let newPersons  = [...persons];
-    let newUnions   = [...unions];
-    let newLinks    = [...links];
+    let newPersons = [...persons];
+    let newUnions = [...unions];
+    let newLinks = [...links];
 
     /** יוצר Person חדש ומוסיף לרשימה, אלא אם הגיע existingPersonId */
     const resolvePerson = (form: PersonFormData): string => {
       if (form.existingPersonId) return form.existingPersonId;
       const newPerson: Person = {
-        id:        uid('person'),
-        fullName:  form.fullName,
+        id: uid('person'),
+        fullName: form.fullName,
         birthYear: form.birthYear,
-        isAlive:   form.isAlive,
-        gender:    form.gender,
-        ...(form.maidenName   && { maidenName:   form.maidenName   }),
-        ...(form.birthDate    && { birthDate:    form.birthDate    }),
-        ...(form.birthPlace   && { birthPlace:   form.birthPlace   }),
-        ...(form.deathYear    && { deathYear:    form.deathYear    }),
-        ...(form.deathDate    && { deathDate:    form.deathDate    }),
-        ...(form.deathPlace   && { deathPlace:   form.deathPlace   }),
-        ...(form.burialPlace  && { burialPlace:  form.burialPlace  }),
-        ...(form.photoUrl     && { photoUrl:     form.photoUrl     }),
-        ...(form.phoneNumber  && { phoneNumber:  form.phoneNumber  }),
-        ...(form.email        && { email:        form.email        }),
-        ...(form.address      && { address:      form.address      }),
-        ...(form.occupation   && { occupation:   form.occupation   }),
-        ...(form.bio          && { bio:          form.bio          }),
-        ...(form.socialLinks  && { socialLinks:  form.socialLinks  }),
+        isAlive: form.isAlive,
+        gender: form.gender,
+        ...(form.maidenName && { maidenName: form.maidenName }),
+        ...(form.birthDate && { birthDate: form.birthDate }),
+        ...(form.birthPlace && { birthPlace: form.birthPlace }),
+        ...(form.deathYear && { deathYear: form.deathYear }),
+        ...(form.deathDate && { deathDate: form.deathDate }),
+        ...(form.deathPlace && { deathPlace: form.deathPlace }),
+        ...(form.burialPlace && { burialPlace: form.burialPlace }),
+        ...(form.photoUrl && { photoUrl: form.photoUrl }),
+        ...(form.phoneNumber && { phoneNumber: form.phoneNumber }),
+        ...(form.email && { email: form.email }),
+        ...(form.address && { address: form.address }),
+        ...(form.occupation && { occupation: form.occupation }),
+        ...(form.bio && { bio: form.bio }),
+        ...(form.socialLinks && { socialLinks: form.socialLinks }),
       };
       newPersons.push(newPerson);
       return newPerson.id;
@@ -194,16 +199,16 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
 
     // ── תרחיש: הוספת בן/בת זוג ───────────────────────────────────────────────
     if (addContext.action === 'add_partner') {
-      const sourceId  = addContext.sourcePersonId;
-      const newId     = resolvePerson(payload.primary);
+      const sourceId = addContext.sourcePersonId;
+      const newId = resolvePerson(payload.primary);
       const newUnion: Union = {
-        id:     uid('union'),
+        id: uid('union'),
         status: payload.unionStatus ?? 'married',
         ...(payload.unionMarriageYear && { marriageYear: payload.unionMarriageYear }),
       };
       newUnions.push(newUnion);
       newLinks.push({ id: uid('link'), personId: sourceId, unionId: newUnion.id, role: 'partner' });
-      newLinks.push({ id: uid('link'), personId: newId,    unionId: newUnion.id, role: 'partner' });
+      newLinks.push({ id: uid('link'), personId: newId, unionId: newUnion.id, role: 'partner' });
     }
 
     // ── תרחיש: הוספת ילד ────────────────────────────────────────────────────
@@ -214,12 +219,12 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
 
     // ── תרחיש: הוספת הורה/ים ────────────────────────────────────────────────
     else if (addContext.action === 'add_parent') {
-      const childId    = addContext.sourcePersonId;
-      const parent1Id  = resolvePerson(payload.primary);
+      const childId = addContext.sourcePersonId;
+      const parent1Id = resolvePerson(payload.primary);
 
       // יצירת union (גם אם הורה שני חסר — עדיין ניצור union עם הורה בודד)
       const newUnion: Union = {
-        id:     uid('union'),
+        id: uid('union'),
         status: payload.unionStatus ?? 'married',
         ...(payload.unionMarriageYear && { marriageYear: payload.unionMarriageYear }),
       };

@@ -81,7 +81,7 @@ export default function MegaTree() {
         {nodes.length > 20 && (
           <MiniMap nodeStrokeColor="#8b7355" maskColor="rgba(253,251,247,0.7)" className="!bg-white !shadow-xl !border-none !rounded-lg" />
         )}
-        <Panel position="top-right" style={{ margin: 0, padding: 0 }}>
+        <Panel position="top-center" style={{ marginTop: '24px', zIndex: 50 }}>
           <SearchBar />
         </Panel>
       </ReactFlow>

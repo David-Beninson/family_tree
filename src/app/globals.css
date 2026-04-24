@@ -36,11 +36,11 @@ body {
 
 @keyframes searchPulse {
   from {
-    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.3);
-    border-color: #f59e0b;
+    box-shadow: 0 0 15px 2px rgba(212, 163, 115, 0.4);
+    background-color: rgba(212, 163, 115, 0.0);
   }
   to {
-    box-shadow: 0 0 0 12px rgba(245, 158, 11, 0.05);
-    border-color: #fbbf24;
+    box-shadow: 0 0 25px 8px rgba(212, 163, 115, 0.6);
+    background-color: rgba(212, 163, 115, 0.15);
   }
 }
