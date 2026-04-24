@@ -201,14 +201,28 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     if (addContext.action === 'add_partner') {
       const sourceId = addContext.sourcePersonId;
       const newId = resolvePerson(payload.primary);
-      const newUnion: Union = {
-        id: uid('union'),
-        status: payload.unionStatus ?? 'married',
-        ...(payload.unionMarriageYear && { marriageYear: payload.unionMarriageYear }),
-      };
-      newUnions.push(newUnion);
-      newLinks.push({ id: uid('link'), personId: sourceId, unionId: newUnion.id, role: 'partner' });
-      newLinks.push({ id: uid('link'), personId: newId, unionId: newUnion.id, role: 'partner' });
+      
+      // Look for an existing union that has exactly 1 partner (the sourceId)
+      const existingLinks = newLinks.filter(l => l.personId === sourceId && l.role === 'partner');
+      const singleParentUnionLink = existingLinks.find(l => {
+          const unionPartners = newLinks.filter(ul => ul.unionId === l.unionId && ul.role === 'partner');
+          return unionPartners.length === 1;
+      });
+
+      if (singleParentUnionLink) {
+          // If the person has a 1-partner union (created from adding a single parent), add the new spouse to it
+          newLinks.push({ id: uid('link'), personId: newId, unionId: singleParentUnionLink.unionId, role: 'partner' });
+      } else {
+          // Normal case: Create a new union for the marriage
+          const newUnion: Union = {
+            id: uid('union'),
+            status: payload.unionStatus ?? 'married',
+            ...(payload.unionMarriageYear && { marriageYear: payload.unionMarriageYear }),
+          };
+          newUnions.push(newUnion);
+          newLinks.push({ id: uid('link'), personId: sourceId, unionId: newUnion.id, role: 'partner' });
+          newLinks.push({ id: uid('link'), personId: newId, unionId: newUnion.id, role: 'partner' });
+      }
     }
 
     // --- Scenario: Add Child --------------------------------------------------
