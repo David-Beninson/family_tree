@@ -5,9 +5,9 @@ export const SPACING = {
     CARD_WIDTH: 280,
     CARD_HEIGHT: 90,
     NODE_PADDING: 20,
-    MIN_NODE_GAP: 30, // Reduced from 60
-    SIBLING_GAP: 40,   // Reduced from 120
-    LEVEL_Y: 200,      // Reduced from 250
+    MIN_NODE_GAP: 40,  // Slightly increased for clarity
+    SIBLING_GAP: 50,   // Slightly increased for clarity
+    LEVEL_Y: 260,      // Increased from 200/240 as requested
     ROOT_Y_START: 0,
 };
 
@@ -335,23 +335,29 @@ export function buildGraphLayout(
 
             children.forEach(child => {
                 const childUnions = getPartnerLinks(child.id);
+                const childY = genY(child.id);
+                const idealChildX = finalHubX - (SPACING.CARD_WIDTH / 2);
+
                 if (childUnions.length > 0 && !visitedHubs.has(childUnions[0].unionId)) {
                     const primaryUnionId = childUnions[0].unionId;
-                    // Pass 0 genLevel determines the real Y; _Y hint is ignored inside placeUnion
-                    const c = placeUnion(primaryUnionId, finalHubX, 0, { type: 'child', sourceId: child.id });
+                    const partners = sortPartners(getUnionPartners(primaryUnionId));
+                    const isLeftPartner = partners[0] === child.id;
+                    
+                    // The union hub should be shifted so the CHILD is at idealChildX
+                    const idealHubX = isLeftPartner ? (idealChildX + PARTNER_OFFSET) : (idealChildX - PARTNER_OFFSET);
+                    
+                    const c = placeUnion(primaryUnionId, idealHubX, 0, { type: 'child', sourceId: child.id });
                     const shift = getRequiredShift(packedContours, c);
                     if (shift !== 0) shiftSubtree(primaryUnionId, shift);
                     mergeContours(packedContours, c, shift);
                     childrenEntries.push({ contour: c, id: primaryUnionId, type: 'union' });
                 } else if (!visitedPersons.has(child.id)) {
                     const c = getEmptyContour();
-                    const childY = genY(child.id);
-                    const idealX = finalHubX - (SPACING.CARD_WIDTH / 2);
-                    c.left[childY] = idealX;
-                    c.right[childY] = idealX + SPACING.CARD_WIDTH;
+                    c.left[childY] = idealChildX;
+                    c.right[childY] = idealChildX + SPACING.CARD_WIDTH;
                     
                     const shift = getRequiredShift(packedContours, c);
-                    const finalX = idealX + shift;
+                    const finalX = idealChildX + shift;
                     positions[child.id] = { x: finalX, y: childY };
                     visitedPersons.add(child.id);
                     registerNodeInSubtree(uId, 'person', child.id);
@@ -460,7 +466,7 @@ export function buildGraphLayout(
         rfNodes.push({
             id: `union-hub-${u.id}`,
             type: 'union',
-            position: { x: hubPositions[u.id].x - 10, y: hubPositions[u.id].y - 10 },
+            position: { x: hubPositions[u.id].x - 10, y: hubPositions[u.id].y },
             width: 20,
             height: 20,
             draggable: false,
@@ -471,16 +477,30 @@ export function buildGraphLayout(
         partners.forEach((pId, idx) => {
             if (!positions[pId]) return;
             const isLeft = idx === 0;
-            rfEdges.push({
-                id: `edge-${pId}-${u.id}`,
-                source: pId,
-                target: `union-hub-${u.id}`,
-                type: 'familyEdge',
-                sourceHandle: isLeft ? 'right-out' : 'left-out',
-                targetHandle: isLeft ? 'left-target' : 'right-target',
-                data: { color, routing: 'straight' },
-                style: { stroke: color, strokeWidth: 3 }
-            });
+            
+            if (isDivorced) {
+                rfEdges.push({
+                    id: `edge-${pId}-${u.id}`,
+                    source: pId,
+                    target: `union-hub-${u.id}`,
+                    type: 'familyEdge',
+                    sourceHandle: 'bottom-source',
+                    targetHandle: 'top-target',
+                    data: { color, routing: 'smoothstep' },
+                    style: { stroke: color, strokeWidth: 3, strokeDasharray: '5,5' }
+                });
+            } else {
+                rfEdges.push({
+                    id: `edge-${pId}-${u.id}`,
+                    source: pId,
+                    target: `union-hub-${u.id}`,
+                    type: 'familyEdge',
+                    sourceHandle: isLeft ? 'right-out' : 'left-out',
+                    targetHandle: isLeft ? 'left-target' : 'right-target',
+                    data: { color, routing: 'straight' },
+                    style: { stroke: color, strokeWidth: 3 }
+                });
+            }
         });
 
         // Edges: Hub to Children

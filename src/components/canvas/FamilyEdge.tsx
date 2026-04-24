@@ -31,6 +31,7 @@ export default function FamilyEdge({
         sourcePosition,
         targetPosition,
         borderRadius: 20,
+        offset: 40, // Increased offset for a deeper vertical drop
       });
 
   const edgeColor = data?.color || '#94a3b8';
