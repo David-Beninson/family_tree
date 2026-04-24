@@ -5,20 +5,29 @@ const { nodes, edges } = buildGraphLayout(initialPersons, initialUnions, initial
 
 console.log(`Nodes count: ${nodes.length}`);
 
-const positions: Record<string, { x: number, y: number, id: string }> = {};
+const CARD_WIDTH = 280;
+const personNodes = nodes.filter(n => n.type === 'familyMember');
 
-nodes.forEach(node => {
-    if (node.type === 'familyMember') {
-        const p = initialPersons.find(p => p.id === node.id);
-        console.log(`Person ${p?.fullName} (${node.id}) at x=${node.position.x}, y=${node.position.y}`);
+let overlapCount = 0;
+
+for (let i = 0; i < personNodes.length; i++) {
+    for (let j = i + 1; j < personNodes.length; j++) {
+        const n1 = personNodes[i];
+        const n2 = personNodes[j];
         
-        // Check for overlaps
-        const key = `${node.position.x},${node.position.y}`;
-        if (positions[key]) {
-            console.error(`OVERLAP DETECTED! ${node.id} and ${positions[key].id} at ${key}`);
+        if (n1.position.y === n2.position.y) {
+            const left1 = n1.position.x;
+            const right1 = n1.position.x + CARD_WIDTH;
+            const left2 = n2.position.x;
+            const right2 = n2.position.x + CARD_WIDTH;
+            
+            // Check for range overlap
+            if (left1 < right2 && right1 > left2) {
+                console.error(`OVERLAP! ${n1.id} and ${n2.id} at y=${n1.position.y}. X1:[${left1},${right1}] X2:[${left2},${right2}]`);
+                overlapCount++;
+            }
         }
-        positions[key] = { x: node.position.x, y: node.position.y, id: node.id };
-    } else {
-        console.log(`Union Hub ${node.id} at x=${node.position.x}, y=${node.position.y}`);
     }
-});
+}
+
+console.log(`Total overlaps found: ${overlapCount}`);

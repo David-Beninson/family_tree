@@ -272,28 +272,30 @@ export function buildGraphLayout(
         let finalHubX = hubX;
 
         // Hub Anchoring
-        if (existingLeft && existingRight) {
-            finalHubX = (existingLeft.x + existingRight.x) / 2 + (SPACING.CARD_WIDTH / 2);
-        } else if (existingLeft) {
-            finalHubX = context?.direction === 1 ? Math.max(hubX, existingLeft.x + PARTNER_OFFSET) : hubX;
-        } else if (existingRight) {
-            finalHubX = context?.direction === -1 ? Math.min(hubX, existingRight.x - PARTNER_OFFSET) : hubX;
+        if (existingLeft && !existingRight) {
+            finalHubX = existingLeft.x + PARTNER_OFFSET;
+        } else if (!existingLeft && existingRight) {
+            finalHubX = existingRight.x - PARTNER_OFFSET;
+        } else if (existingLeft && existingRight) {
+            // Pedigree Collapse: Two branches meet.
+            // If they are too close, we'd need to push them apart, but for now we average.
+            // The Global Nudge Pass will handle the branch-level pushing if they overlap.
+            finalHubX = (existingLeft.x + existingRight.x) / 2;
         }
 
-        visitedHubs.add(uId);
-        hubPositions[uId] = { x: finalHubX, y: Y + (SPACING.CARD_HEIGHT / 2) };
-        registerNodeInSubtree(uId, 'union', uId);
-
-        if (!existingLeft) {
+        if (!positions[pLeftId]) {
             positions[pLeftId] = { x: finalHubX - PARTNER_OFFSET, y: genY(pLeftId) };
             visitedPersons.add(pLeftId);
             registerNodeInSubtree(uId, 'person', pLeftId);
         }
-        if (!existingRight) {
+        if (!positions[pRightId]) {
             positions[pRightId] = { x: finalHubX + PARTNER_OFFSET, y: genY(pRightId) };
             visitedPersons.add(pRightId);
             registerNodeInSubtree(uId, 'person', pRightId);
         }
+        hubPositions[uId] = { x: finalHubX, y: Y + (SPACING.CARD_HEIGHT / 2) };
+        visitedHubs.add(uId);
+        registerNodeInSubtree(uId, 'union', uId);
 
         const myContour = getEmptyContour();
         // Add partners to contour at their actual Y levels
@@ -400,7 +402,11 @@ export function buildGraphLayout(
 
         const overallContour = getEmptyContour();
 
-        rootUnions.forEach(u => {
+        // Sort root unions by generation level (Y) to ensure ancestors are placed before descendants.
+        // This allows descendants' unions to anchor to already-placed root members.
+        const sortedRootUnions = rootUnions.sort((a, b) => unionY(a.id) - unionY(b.id));
+
+        sortedRootUnions.forEach(u => {
             if (!visitedHubs.has(u.id)) {
                 const c = placeUnion(u.id, 0, SPACING.ROOT_Y_START);
                 const shift = getRequiredShift(overallContour, c);
@@ -419,6 +425,50 @@ export function buildGraphLayout(
             }
         });
     }
+
+    // --- PASS 4: Global Collision Resolution (The Nudge Pass) ---
+    // Final scan to ensure zero overlaps after all recursive placements and shifts.
+    const resolveGlobalCollisions = () => {
+        const yGroups: Record<number, string[]> = {};
+        Object.entries(positions).forEach(([id, pos]) => {
+            if (!yGroups[pos.y]) yGroups[pos.y] = [];
+            yGroups[pos.y].push(id);
+        });
+
+        Object.keys(yGroups).sort((a, b) => parseInt(a) - parseInt(b)).forEach(yStr => {
+            const y = parseInt(yStr);
+            const ids = yGroups[y].sort((a, b) => positions[a].x - positions[b].x);
+            for (let i = 0; i < ids.length - 1; i++) {
+                const n1 = positions[ids[i]];
+                const n2 = positions[ids[i+1]];
+                const minGap = SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP;
+                const overlap = (n1.x + minGap) - n2.x;
+                if (overlap > 0) {
+                    // If they overlap, shift the second person's entire subtree.
+                    const visitedShift = new Set<string>();
+                    const recursiveShift = (pId: string, deltaX: number) => {
+                        if (visitedShift.has(pId)) return;
+                        visitedShift.add(pId);
+                        if (positions[pId]) positions[pId].x += deltaX;
+                        const uLinks = getPartnerLinks(pId);
+                        uLinks.forEach(l => {
+                            if (!visitedShift.has(`hub-${l.unionId}`)) {
+                                visitedShift.add(`hub-${l.unionId}`);
+                                if (hubPositions[l.unionId]) hubPositions[l.unionId].x += deltaX;
+                                const children = getUnionChildren(l.unionId);
+                                children.forEach(c => recursiveShift(c.id, deltaX));
+                            }
+                        });
+                    };
+                    recursiveShift(ids[i+1], overlap);
+                }
+            }
+        });
+    };
+
+    // Run the nudge pass twice for stability
+    resolveGlobalCollisions();
+    resolveGlobalCollisions();
 
     const getUnionColor = (uId: string) => {
         const index = unions.findIndex(u => u.id === uId);
