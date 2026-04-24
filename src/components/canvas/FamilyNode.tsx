@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps, Node } from '@xyflow/react';
-import { ChevronLeft, Target } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useFamilyStore } from '../../lib/store';
 import { Person } from '../../lib/types';
@@ -62,16 +62,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
       ? `${person.deathYear || '?'} - ${person.birthYear || '?'}`
       : '';
 
-  // פונקציית מיקוד: מחפשת קודם אם הוא בזוגיות, ואם לא - מתמקדת במשפחת המקור שלו (איפה שהוא ילד)
-  const handleFocus = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const unionLink =
-      links.find(l => l.personId === person.id && l.role === 'partner') ||
-      links.find(l => l.personId === person.id && l.role === 'child');
 
-    if (unionLink) setFocusUnion(unionLink.unionId);
-    else window.alert('לאדם זה אין משפחה מקושרת למיקוד');
-  };
 
   const handleOpenCard = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -116,13 +107,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
 
       {/* כפתורי פעולה על הכרטיסייה */}
       <div className="flex flex-row gap-1">
-        <button
-          onClick={handleFocus}
-          title="התמקד במשפחה של אדם זה"
-          className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 flex items-center justify-center text-blue-500 hover:text-blue-700 transition-colors"
-        >
-          <Target className="w-5 h-5" />
-        </button>
+
 
         <button
           onClick={handleOpenCard}
