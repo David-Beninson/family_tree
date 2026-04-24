@@ -1,313 +1,285 @@
 import { Person, Union, PersonUnionLink } from './types';
 
 export const initialPersons: Person[] = [
-    // --- משפחת אברהם ---
+    // === דור 1: האבות המייסדים (תימן) ===
     {
-        id: 'arie_avraham',
-        fullName: 'אריה אברהם',
-        birthYear: 1950,
-        birthDate: '1950-05-14',
-        birthPlace: 'תל אביב, ישראל',
-        isAlive: true,
+        id: 'zecharia_tzobari',
+        fullName: 'זכריה צוברי',
+        birthYear: 1890,
+        birthPlace: 'צנעא, תימן',
+        deathYear: 1968,
+        burialPlace: 'בית העלמין סגולה, פתח תקווה',
+        isAlive: false,
         gender: 'male',
-        occupation: 'מהנדס בניין',
-        bio: 'אריה נולד בתל אביב וגדל בשכונת פלורנטין. הוא מהנדס בניין מוסמך שעבד בחברות המובילות בישראל. בזמנו הפנוי אוהב לקרוא ספרי היסטוריה, לטייל בטבע ולבלות עם הנכדים.',
-        phoneNumber: '050-1234567',
-        email: 'arie.avraham@example.com',
-        address: { country: 'ישראל', city: 'חיפה', street: 'שדרות מוריה 15' },
-        socialLinks: { facebook: 'facebook.com/arie.avraham', linkedin: 'linkedin.com/in/arie-avraham' },
-        photoUrl: 'https://randomuser.me/api/portraits/men/75.jpg'
+        occupation: 'צורף כסף ורב הקהילה',
+        bio: 'סב המשפחה. עלה לארץ במבצע "על כנפי נשרים" עם שתי נשותיו וילדיו. היה צורף כסף מחונן שיצירותיו מוצגות היום במוזיאון ישראל.',
+        photoUrl: 'https://randomuser.me/api/portraits/men/85.jpg'
     },
     {
-        id: 'michal_avraham',
-        fullName: 'מיכל אברהם',
-        maidenName: 'כהן',
-        birthYear: 1952,
-        birthDate: '1952-08-22',
-        birthPlace: 'ירושלים, ישראל',
-        isAlive: true,
-        gender: 'female',
-        occupation: 'מורה לספרות (בפנסיה)',
-        bio: 'מיכל עבדה כמורה לספרות בתיכון למעלה מ-30 שנה וחינכה דורות של תלמידים. היא חובבת אמנות קלאסית ונוהגת לצייר בצבעי מים בזמנה הפנוי.',
-        phoneNumber: '052-7654321',
-        email: 'michal.avr@example.com',
-        address: { country: 'ישראל', city: 'חיפה', street: 'שדרות מוריה 15' },
-        socialLinks: { facebook: 'facebook.com/michal.art' },
-        photoUrl: 'https://randomuser.me/api/portraits/women/65.jpg'
-    },
-    {
-        id: 'omer_avraham',
-        fullName: 'עומר אברהם',
-        birthYear: 1975,
-        birthDate: '1975-03-10',
-        birthPlace: 'חיפה, ישראל',
-        isAlive: true,
-        gender: 'male',
-        occupation: 'סמנכ"ל מוצר',
-        bio: 'עומר מכהן כסמנכ"ל מוצר בחברת פינטק גלובלית. הוא ידוע בחיבתו לספורט אתגרי ורוכב על אופני הרים בכל סוף שבוע.',
-        phoneNumber: '054-9876543',
-        email: 'omer.product@example.com',
-        address: { country: 'ישראל', city: 'תל אביב', street: 'שדרות רוטשילד 100' },
-        socialLinks: { linkedin: 'linkedin.com/in/omer-avraham', instagram: 'instagram.com/omer_rides' },
-        photoUrl: 'https://randomuser.me/api/portraits/men/32.jpg'
-    },
-    {
-        id: 'shira_avraham',
-        fullName: 'שירה אברהם',
-        birthYear: 1980,
-        birthDate: '1980-11-05',
-        birthPlace: 'חיפה, ישראל',
-        deathYear: 2023,
-        deathDate: '2023-01-15',
-        deathPlace: 'רמת גן, ישראל',
-        burialPlace: 'בית העלמין ירקון, חלקה ג',
+        id: 'shoshana_tzobari',
+        fullName: 'שושנה צוברי',
+        maidenName: 'ערוסי',
+        birthYear: 1895,
+        birthPlace: 'צנעא, תימן',
+        deathYear: 1950,
         isAlive: false,
         gender: 'female',
-        occupation: 'עורכת דין',
-        bio: 'שירה הייתה עורכת דין מבריקה ומוערכת בתחום זכויות האדם. היא הקדישה את חייה להתנדבות וסיוע למעוטי יכולת ולימדה משפטים באוניברסיטה.',
-        photoUrl: 'https://randomuser.me/api/portraits/women/44.jpg'
+        occupation: 'עקרת בית ורוקמת',
+        bio: 'אשתו הראשונה של זכריה. אישה חזקה שגידלה את ילדיה במסירות בדרך העולה לארץ ישראל, אך נפטרה זמן קצר לאחר ההגעה למעברת ראש העין.',
+        photoUrl: 'https://randomuser.me/api/portraits/women/85.jpg'
     },
     {
-        id: 'yossi_avraham',
-        fullName: 'יוסי אברהם',
-        birthYear: 1982,
-        birthDate: '1982-07-30',
-        birthPlace: 'חיפה, ישראל',
-        isAlive: true,
-        gender: 'male',
-        occupation: 'שף ובעלים של מסעדה',
-        bio: 'יוסי למד קולינריה בפריז ועבד במסעדות מישלן לפני שחזר לארץ. כיום הוא השף והבעלים של מסעדת פיוז\'ן מצליחה בירושלים.',
-        phoneNumber: '058-1112233',
-        email: 'chef.yossi@example.com',
-        address: { country: 'ישראל', city: 'ירושלים', street: 'אגריפס 12' },
-        socialLinks: { instagram: 'instagram.com/chef.yossi', facebook: 'facebook.com/yossi.chef' },
-        photoUrl: 'https://randomuser.me/api/portraits/men/45.jpg'
+        id: 'yonah_tzobari',
+        fullName: 'יונה צוברי',
+        maidenName: 'מנצורה',
+        birthYear: 1905,
+        birthPlace: 'שרעב, תימן',
+        deathYear: 1982,
+        isAlive: false,
+        gender: 'female',
+        occupation: 'רופאה מסורתית (מיילדת)',
+        bio: 'אשתו השנייה של זכריה. צעירה משושנה, הייתה ידועה בכל האזור כמיילדת ומומחית לצמחי מרפא. גידלה את הילדים של שושנה כאילו היו שלה.',
+        photoUrl: 'https://randomuser.me/api/portraits/women/70.jpg'
     },
 
-    // --- משפחת לוי ---
+    // === דור 2: הילדים של זכריה ===
     {
-        id: 'itzhak_levi',
+        id: 'avraham_tzobari',
+        fullName: 'אברהם צוברי',
+        birthYear: 1912,
+        isAlive: false,
+        deathYear: 1995,
+        gender: 'male',
+        occupation: 'חקלאי',
+        bio: 'בנו הבכור של זכריה משושנה. איש אדמה שעבד בפרדסי השרון רוב ימי חייו.',
+    },
+    {
+        id: 'mazal_tzobari',
+        fullName: 'מזל צוברי',
+        birthYear: 1915,
+        isAlive: false,
+        deathYear: 2001,
+        gender: 'female',
+    },
+    {
+        id: 'miriam_levi',
+        fullName: 'מרים לוי',
+        maidenName: 'צוברי',
+        birthYear: 1915,
+        isAlive: false,
+        deathYear: 1990,
+        gender: 'female',
+        bio: 'בתו של זכריה (משושנה). התחתנה עם שלום לוי במחנה העולים.',
+    },
+    {
+        id: 'shalom_levi',
+        fullName: 'שלום לוי',
+        birthYear: 1910,
+        isAlive: false,
+        deathYear: 1988,
+        gender: 'male',
+    },
+    {
+        id: 'yosef_tzobari',
+        fullName: 'יוסף צוברי',
+        birthYear: 1920,
+        isAlive: false,
+        deathYear: 2005,
+        gender: 'male',
+        bio: 'בנו הזקן של זכריה ושושנה.',
+    },
+    {
+        id: 'rachel_tzobari',
+        fullName: 'רחל צוברי',
+        birthYear: 1928,
+        isAlive: false,
+        deathYear: 2010,
+        gender: 'female',
+    },
+    {
+        id: 'shimon_tzobari',
+        fullName: 'שמעון צוברי',
+        birthYear: 1925,
+        isAlive: false,
+        deathYear: 2018,
+        gender: 'male',
+        bio: 'בנו היחיד של זכריה מאשתו השנייה, יונה. (חצי אח של אברהם, מרים ויוסף).',
+    },
+
+    // === דור 3: נישואי תערובת בתוך המשפחה (כאן מתחיל האתגר) ===
+    {
+        id: 'naomi_levi',
+        fullName: 'נעמי לוי',
+        maidenName: 'צוברי',
+        birthYear: 1935,
+        isAlive: true,
+        gender: 'female',
+        address: { city: 'ראש העין' },
+        bio: 'הבת של אברהם ומזל. התחתנה עם הבן דוד הראשון שלה, יצחק (הבן של מרים, אחות של אבא שלה).',
+        photoUrl: 'https://randomuser.me/api/portraits/women/55.jpg'
+    },
+    {
+        id: 'yitzhak_levi',
         fullName: 'יצחק לוי',
-        birthYear: 1950,
-        birthDate: '1950-02-18',
-        birthPlace: 'רחובות, ישראל',
+        birthYear: 1930,
         isAlive: true,
         gender: 'male',
-        occupation: 'חקלאי ויו"ר ועד המושב',
-        bio: 'יצחק מנהל משק חקלאי גדול העובר במשפחה דורות. הוא מתמחה בגידול פירות הדר ומפיק שמן זית עטור פרסים המשווק לכל הארץ.',
-        phoneNumber: '050-4445555',
-        address: { country: 'ישראל', city: 'מושב כפר חיים', street: 'דרך הפרדסים 3' },
+        address: { city: 'ראש העין' },
+        bio: 'הבן של מרים ושלום. התחתן עם בת הדודה נעמי. עבד עשרות שנים בתעשייה האווירית.',
         photoUrl: 'https://randomuser.me/api/portraits/men/60.jpg'
     },
     {
-        id: 'sara_levi',
+        id: 'rivka_tzobari',
+        fullName: 'רבקה צוברי',
+        birthYear: 1945,
+        isAlive: true,
+        gender: 'female',
+        bio: 'הבת של יוסף ורחל. התחתנה עם שמעון, שהוא למעשה חצי-דוד שלה (האח למחצה של אבא שלה).',
+    },
+
+    // === דור 4: הילדים מהנישואים הפנימיים ===
+    {
+        id: 'david_levi',
+        fullName: 'דוד לוי',
+        birthYear: 1955,
+        isAlive: true,
+        gender: 'male',
+        occupation: 'מנהל בנק',
+        bio: 'הבן של יצחק ונעמי (שהם בני דודים). יצא ממעגל הנישואים הפנימי והתחתן עם שרה, עולה מארגנטינה.',
+        photoUrl: 'https://randomuser.me/api/portraits/men/40.jpg'
+    },
+    {
+        id: 'sarah_levi',
         fullName: 'שרה לוי',
-        maidenName: 'גרינברג',
-        birthYear: 1952,
-        birthDate: '1952-12-01',
-        birthPlace: 'פתח תקווה, ישראל',
+        birthYear: 1960,
         isAlive: true,
         gender: 'female',
-        occupation: 'אחות מוסמכת במחלקת ילדים',
-        bio: 'שרה שימשה כאחות ראשית במחלקת ילדים במשך עשורים. כיום בפנסיה, נהנית לאפות עוגות שמרים מפורסמות ולטפל בנכדים שמגיעים למושב.',
-        phoneNumber: '052-8889999',
-        address: { country: 'ישראל', city: 'מושב כפר חיים', street: 'דרך הפרדסים 3' },
-        photoUrl: 'https://randomuser.me/api/portraits/women/60.jpg'
+        photoUrl: 'https://randomuser.me/api/portraits/women/42.jpg'
     },
     {
-        id: 'noa_levi',
-        fullName: 'נועה לוי',
-        birthYear: 1978,
-        birthDate: '1978-09-14',
-        birthPlace: 'מושב כפר חיים, ישראל',
+        id: 'eitan_tzobari',
+        fullName: 'איתן צוברי',
+        birthYear: 1965,
+        isAlive: true,
+        gender: 'male',
+        occupation: 'קבלן שיפוצים',
+        bio: 'הבן של שמעון ורבקה. הוריו הם דוד ואחיינית (למחצה). התגרש ממאיה בצעירותו.',
+        photoUrl: 'https://randomuser.me/api/portraits/men/35.jpg'
+    },
+    {
+        id: 'maya_golan',
+        fullName: 'מאיה גולן',
+        birthYear: 1970,
         isAlive: true,
         gender: 'female',
-        occupation: 'אדריכלית פנים',
-        bio: 'נועה היא אדריכלית בעלת סטודיו לעיצוב פנים, המתמחה בבנייה ירוקה וחללים מודרניים. היא נפגשה עם עומר במהלך הרצאה על טכנולוגיה ועיצוב.',
-        phoneNumber: '054-2223344',
-        email: 'noa.arch@example.com',
-        address: { country: 'ישראל', city: 'תל אביב', street: 'שדרות רוטשילד 100' },
-        socialLinks: { instagram: 'instagram.com/noa.designs', linkedin: 'linkedin.com/in/noa-levi' },
-        photoUrl: 'https://randomuser.me/api/portraits/women/32.jpg'
     },
 
-    // --- בנות הזוג של יוסי ---
+    // === דור 5: סגירת מעגל - הילדים שלהם מתחתנים ===
     {
-        id: 'dana_shemesh',
-        fullName: 'דנה שמש',
-        birthYear: 1984,
-        birthDate: '1984-04-20',
-        birthPlace: 'ראשון לציון, ישראל',
-        isAlive: true,
-        gender: 'female',
-        occupation: 'רואת חשבון',
-        bio: 'דנה מנהלת משרד רואי חשבון עצמאי. היא חובבת יוגה, טיולי טרקים בחו"ל ומקפידה על תזונה טבעונית.',
-        phoneNumber: '053-5556677',
-        email: 'dana.cpa@example.com',
-        address: { country: 'ישראל', city: 'ראשון לציון', street: 'הרצל 40' },
-        photoUrl: 'https://randomuser.me/api/portraits/women/40.jpg'
-    },
-    {
-        id: 'maya_levi',
-        fullName: 'מאיה לוי',
+        id: 'yael_tzobari_levi',
+        fullName: 'יעל צוברי-לוי',
         birthYear: 1985,
-        birthDate: '1985-06-08',
-        birthPlace: 'נתניה, ישראל',
         isAlive: true,
         gender: 'female',
-        occupation: 'מעצבת גרפית ומאיירת',
-        bio: 'מאיה היא מאיירת ספרי ילדים ויוצרת קומיקס פרילנסרית. הכירה את יוסי כשהגיעה לעצב לו את תפריט המסעדה, והשאר היסטוריה.',
-        phoneNumber: '050-9998877',
-        email: 'maya.art@example.com',
-        address: { country: 'ישראל', city: 'ירושלים', street: 'אגריפס 12' },
-        socialLinks: { instagram: 'instagram.com/maya_illustrates' },
-        photoUrl: 'https://randomuser.me/api/portraits/women/38.jpg'
+        occupation: 'מתכנתת בכירה',
+        bio: 'הבת של דוד ושרה. נפגשה עם נועם (שהוא קרוב משפחה רחוק שלה דרך הסבך המשפחתי) במסיבה, והם החליטו להתחתן.',
+        photoUrl: 'https://randomuser.me/api/portraits/women/25.jpg'
     },
-
-    // --- הנכדים (ילדים של עומר ונועה) ---
     {
-        id: 'uri_avraham',
-        fullName: 'אורי אברהם',
-        birthYear: 2005,
-        birthDate: '2005-01-22',
-        birthPlace: 'תל אביב, ישראל',
+        id: 'noam_tzobari',
+        fullName: 'נועם צוברי',
+        birthYear: 1995,
         isAlive: true,
         gender: 'male',
-        occupation: 'חייל בסדיר',
-        bio: 'אורי משרת כרגע ביחידה מובחרת בצה"ל. לפני הצבא עשה שנת שירות בצפון והדריך בני נוער. חובב נגינה בגיטרה.',
-        phoneNumber: '052-3334455',
-        socialLinks: { instagram: 'instagram.com/uri_avr' },
-        photoUrl: 'https://randomuser.me/api/portraits/men/20.jpg'
-    },
-    {
-        id: 'yael_avraham',
-        fullName: 'יעל אברהם',
-        birthYear: 2010,
-        birthDate: '2010-10-10',
-        birthPlace: 'תל אביב, ישראל',
-        isAlive: true,
-        gender: 'female',
-        occupation: 'תלמידת תיכון',
-        bio: 'יעל לומדת במגמת מחול ותיאטרון. רוקדת בלט קלאסי מגיל צעיר וחולמת להופיע על במות בינלאומיות.',
-        photoUrl: 'https://randomuser.me/api/portraits/women/15.jpg'
+        occupation: 'מעצב גרפי',
+        bio: 'הבן של איתן ומאיה. התחתן עם יעל.',
+        photoUrl: 'https://randomuser.me/api/portraits/men/26.jpg'
     },
 
-    // --- הנכדים (ילדים של יוסי ודנה) ---
+    // === דור 6: הנין שמחבר הכל ===
     {
-        id: 'dan_avraham',
-        fullName: 'דן אברהם',
-        birthYear: 2008,
-        birthDate: '2008-05-18',
-        birthPlace: 'ירושלים, ישראל',
+        id: 'ori_tzobari',
+        fullName: 'אורי צוברי',
+        birthYear: 2020,
         isAlive: true,
         gender: 'male',
-        occupation: 'תלמיד ושחקן כדורסל',
-        bio: 'דן הוא שחקן כדורסל מצטיין בקבוצת הנוער של הפועל ירושלים. מתנשא לגובה 1.90 ונחשב להבטחה גדולה.',
-        phoneNumber: '054-7778899',
-        photoUrl: 'https://randomuser.me/api/portraits/men/18.jpg'
-    },
-    {
-        id: 'noa_avraham_jr',
-        fullName: 'נועה אברהם',
-        birthYear: 2012,
-        birthDate: '2012-03-03',
-        birthPlace: 'ראשון לציון, ישראל',
-        isAlive: true,
-        gender: 'female',
-        occupation: 'תלמידה בחטיבת ביניים',
-        bio: 'נועה הצעירה אוהבת מאוד בעלי חיים, מתנדבת בעמותה לאימוץ כלבים וחולמת להיות וטרינרית כשתגדל.',
-        photoUrl: 'https://randomuser.me/api/portraits/women/12.jpg'
-    },
-
-    // --- בני/בנות זוג של הנכדים ---
-    {
-        id: 'roni_cohen',
-        fullName: 'רוני כהן',
-        birthYear: 2009,
-        birthDate: '2009-08-11',
-        birthPlace: 'מודיעין, ישראל',
-        isAlive: true,
-        gender: 'female',
-        occupation: 'עתודאית למדעי המחשב',
-        bio: 'רוני היא אלופת הארץ לנוער בשחמט (לשעבר). כיום לומדת מדעי המחשב באוניברסיטה במסגרת עתודה אקדמית.',
-        photoUrl: 'https://randomuser.me/api/portraits/women/18.jpg'
-    },
-    {
-        id: 'adi_cohen',
-        fullName: 'עדי כהן',
-        birthYear: 2006,
-        birthDate: '2006-11-25',
-        birthPlace: 'כפר סבא, ישראל',
-        isAlive: true,
-        gender: 'female',
-        occupation: 'מפתחת תוכנה (חיילת)',
-        bio: 'עדי משרתת ביחידת סייבר מובחרת. היא חובבת צילום אנלוגי ומנהלת בלוג צילום משלה.',
-        phoneNumber: '050-1122334',
-        email: 'adi.cohen.dev@example.com',
-        socialLinks: { linkedin: 'linkedin.com/in/adi-cohen', instagram: 'instagram.com/adi_film_camera' },
-        photoUrl: 'https://randomuser.me/api/portraits/women/20.jpg'
-    },
-
-    // --- נינים ---
-    {
-        id: 'noam_avraham',
-        fullName: 'נועם אברהם',
-        birthYear: 2024,
-        birthDate: '2024-02-10',
-        birthPlace: 'תל אביב, ישראל',
-        isAlive: true,
-        gender: 'male',
-        occupation: 'תינוק',
-        bio: 'נועם הוא התוספת החדשה, המקסימה והמרגשת למשפחת אברהם. בינתיים הוא בעיקר אוכל, ישן ומחייך.',
-        photoUrl: 'https://randomuser.me/api/portraits/lego/1.jpg'
-    },
+        bio: 'הבן של יעל ונועם. העץ שלו כל כך סבוך שהוא כנראה בן דוד של עצמו מכמה כיוונים שונים.',
+        photoUrl: 'https://randomuser.me/api/portraits/lego/3.jpg'
+    }
 ];
 
 export const initialUnions: Union[] = [
-    { id: 'union_arie_michal', status: 'married', marriageYear: 1974 },
-    { id: 'union_itzhak_sara', status: 'married', marriageYear: 1976 },
-    { id: 'union_omer_noa', status: 'married', marriageYear: 1998 },
-    { id: 'union_yossi_dana', status: 'divorced', marriageYear: 2004, divorceYear: 2012 },
-    { id: 'union_yossi_maya', status: 'married', marriageYear: 2014 },
-    { id: 'union_dan_roni', status: 'married', marriageYear: 2023 },
-    { id: 'union_uri_adi', status: 'divorced', marriageYear: 2022, divorceYear: 2024 },
+    // חתונות האב המייסד (פוליגמיה)
+    { id: 'union_zech_shosh', status: 'married', marriageYear: 1910 },
+    { id: 'union_zech_yonah', status: 'married', marriageYear: 1923 },
+
+    // חתונות הדור השני (רגילות)
+    { id: 'union_avr_mazal', status: 'married', marriageYear: 1933 },
+    { id: 'union_mir_shalom', status: 'married', marriageYear: 1929 },
+    { id: 'union_yos_rach', status: 'married', marriageYear: 1943 },
+
+    // חתונות הדור השלישי והרביעי (הסבך הגדול - נישואי קרובים)
+    { id: 'union_yitzhak_naomi', status: 'married', marriageYear: 1953 }, // בני דודים
+    { id: 'union_shimon_rivka', status: 'married', marriageYear: 1963 }, // דוד ואחיינית
+
+    // חתונות וגירושים רגילים
+    { id: 'union_david_sarah', status: 'married', marriageYear: 1982 },
+    { id: 'union_eitan_maya', status: 'divorced', marriageYear: 1993, divorceYear: 2000 },
+
+    // סגירת המעגל
+    { id: 'union_yael_noam', status: 'married', marriageYear: 2018 },
 ];
 
 export const initialLinks: PersonUnionLink[] = [
-    // Arie & Michal + Children
-    { id: 'link_1', personId: 'arie_avraham', unionId: 'union_arie_michal', role: 'partner' },
-    { id: 'link_2', personId: 'michal_avraham', unionId: 'union_arie_michal', role: 'partner' },
-    { id: 'link_3', personId: 'omer_avraham', unionId: 'union_arie_michal', role: 'child' },
-    { id: 'link_4', personId: 'shira_avraham', unionId: 'union_arie_michal', role: 'child' },
-    { id: 'link_5', personId: 'yossi_avraham', unionId: 'union_arie_michal', role: 'child' },
+    // משפחת זכריה ושושנה + ילדים
+    { id: 'l1', personId: 'zecharia_tzobari', unionId: 'union_zech_shosh', role: 'partner' },
+    { id: 'l2', personId: 'shoshana_tzobari', unionId: 'union_zech_shosh', role: 'partner' },
+    { id: 'l3', personId: 'avraham_tzobari', unionId: 'union_zech_shosh', role: 'child' },
+    { id: 'l4', personId: 'miriam_levi', unionId: 'union_zech_shosh', role: 'child' },
+    { id: 'l5', personId: 'yosef_tzobari', unionId: 'union_zech_shosh', role: 'child' },
 
-    // Itzhak & Sara + Noa
-    { id: 'link_6', personId: 'itzhak_levi', unionId: 'union_itzhak_sara', role: 'partner' },
-    { id: 'link_7', personId: 'sara_levi', unionId: 'union_itzhak_sara', role: 'partner' },
-    { id: 'link_8', personId: 'noa_levi', unionId: 'union_itzhak_sara', role: 'child' },
+    // משפחת זכריה ויונה (אישה 2) + ילדים
+    { id: 'l6', personId: 'zecharia_tzobari', unionId: 'union_zech_yonah', role: 'partner' },
+    { id: 'l7', personId: 'yonah_tzobari', unionId: 'union_zech_yonah', role: 'partner' },
+    { id: 'l8', personId: 'shimon_tzobari', unionId: 'union_zech_yonah', role: 'child' },
 
-    // Omer & Noa + Children (Uri & Yael)
-    { id: 'link_9', personId: 'omer_avraham', unionId: 'union_omer_noa', role: 'partner' },
-    { id: 'link_10', personId: 'noa_levi', unionId: 'union_omer_noa', role: 'partner' },
-    { id: 'link_11', personId: 'uri_avraham', unionId: 'union_omer_noa', role: 'child' },
-    { id: 'link_12', personId: 'yael_avraham', unionId: 'union_omer_noa', role: 'child' },
+    // משפחת אברהם ומזל -> נעמי
+    { id: 'l9', personId: 'avraham_tzobari', unionId: 'union_avr_mazal', role: 'partner' },
+    { id: 'l10', personId: 'mazal_tzobari', unionId: 'union_avr_mazal', role: 'partner' },
+    { id: 'l11', personId: 'naomi_levi', unionId: 'union_avr_mazal', role: 'child' },
 
-    // Yossi & Dana (Divorced) + Children (Dan & Noa Jr)
-    { id: 'link_13', personId: 'yossi_avraham', unionId: 'union_yossi_dana', role: 'partner' },
-    { id: 'link_14', personId: 'dana_shemesh', unionId: 'union_yossi_dana', role: 'partner' },
-    { id: 'link_15', personId: 'dan_avraham', unionId: 'union_yossi_dana', role: 'child' },
-    { id: 'link_16', personId: 'noa_avraham_jr', unionId: 'union_yossi_dana', role: 'child' },
+    // משפחת מרים ושלום -> יצחק
+    { id: 'l12', personId: 'miriam_levi', unionId: 'union_mir_shalom', role: 'partner' },
+    { id: 'l13', personId: 'shalom_levi', unionId: 'union_mir_shalom', role: 'partner' },
+    { id: 'l14', personId: 'yitzhak_levi', unionId: 'union_mir_shalom', role: 'child' },
 
-    // Yossi & Maya (Second marriage)
-    { id: 'link_17', personId: 'yossi_avraham', unionId: 'union_yossi_maya', role: 'partner' },
-    { id: 'link_18', personId: 'maya_levi', unionId: 'union_yossi_maya', role: 'partner' },
+    // משפחת יוסף ורחל -> רבקה
+    { id: 'l15', personId: 'yosef_tzobari', unionId: 'union_yos_rach', role: 'partner' },
+    { id: 'l16', personId: 'rachel_tzobari', unionId: 'union_yos_rach', role: 'partner' },
+    { id: 'l17', personId: 'rivka_tzobari', unionId: 'union_yos_rach', role: 'child' },
 
-    // Dan & Roni
-    { id: 'link_19', personId: 'dan_avraham', unionId: 'union_dan_roni', role: 'partner' },
-    { id: 'link_20', personId: 'roni_cohen', unionId: 'union_dan_roni', role: 'partner' },
+    // === נישואי קרובים 1: יצחק (בן מרים) מתחתן עם נעמי (בת אברהם) -> דוד ===
+    { id: 'l18', personId: 'yitzhak_levi', unionId: 'union_yitzhak_naomi', role: 'partner' },
+    { id: 'l19', personId: 'naomi_levi', unionId: 'union_yitzhak_naomi', role: 'partner' },
+    { id: 'l20', personId: 'david_levi', unionId: 'union_yitzhak_naomi', role: 'child' },
 
-    // Uri & Adi (Divorced) + Noam
-    { id: 'link_21', personId: 'uri_avraham', unionId: 'union_uri_adi', role: 'partner' },
-    { id: 'link_22', personId: 'adi_cohen', unionId: 'union_uri_adi', role: 'partner' },
-    { id: 'link_23', personId: 'noam_avraham', unionId: 'union_uri_adi', role: 'child' },
+    // === נישואי קרובים 2: שמעון (האח למחצה) מתחתן עם רבקה (האחיינית) -> איתן ===
+    { id: 'l21', personId: 'shimon_tzobari', unionId: 'union_shimon_rivka', role: 'partner' },
+    { id: 'l22', personId: 'rivka_tzobari', unionId: 'union_shimon_rivka', role: 'partner' },
+    { id: 'l23', personId: 'eitan_tzobari', unionId: 'union_shimon_rivka', role: 'child' },
+
+    // משפחת דוד ושרה -> יעל
+    { id: 'l24', personId: 'david_levi', unionId: 'union_david_sarah', role: 'partner' },
+    { id: 'l25', personId: 'sarah_levi', unionId: 'union_david_sarah', role: 'partner' },
+    { id: 'l26', personId: 'yael_tzobari_levi', unionId: 'union_david_sarah', role: 'child' },
+
+    // משפחת איתן ומאיה (גרושים) -> נועם
+    { id: 'l27', personId: 'eitan_tzobari', unionId: 'union_eitan_maya', role: 'partner' },
+    { id: 'l28', personId: 'maya_golan', unionId: 'union_eitan_maya', role: 'partner' },
+    { id: 'l29', personId: 'noam_tzobari', unionId: 'union_eitan_maya', role: 'child' },
+
+    // === סגירת הלולאה המטורפת: יעל מתחתנת עם נועם -> אורי ===
+    { id: 'l30', personId: 'yael_tzobari_levi', unionId: 'union_yael_noam', role: 'partner' },
+    { id: 'l31', personId: 'noam_tzobari', unionId: 'union_yael_noam', role: 'partner' },
+    { id: 'l32', personId: 'ori_tzobari', unionId: 'union_yael_noam', role: 'child' },
 ];
