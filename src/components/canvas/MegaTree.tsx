@@ -7,12 +7,14 @@ import {
   Controls,
   MiniMap,
   Handle,
-  Position
+  Position,
+  Panel
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { FamilyNode } from './FamilyNode';
 import FamilyEdge from './FamilyEdge';
 import { useFamilyStore } from '../../lib/store';
+import SearchBar from './SearchBar';
 
 const UnionNode = ({ data }: any) => {
   const { openAddDrawer } = useFamilyStore();
@@ -28,8 +30,8 @@ const UnionNode = ({ data }: any) => {
       title="הוסף ילד/ה לזוג זה"
       className="relative flex justify-center items-center w-5 h-5 bg-slate-800 text-white rounded-full cursor-pointer hover:bg-indigo-600 hover:scale-125 shadow-md transition-all z-20 group"
     >
-      <Handle type="target" position={Position.Top}   id="top-target"   className="opacity-0 w-1 h-1 pointer-events-none border-0" />
-      <Handle type="target" position={Position.Left}  id="left-target"  className="opacity-0 w-1 h-1 pointer-events-none border-0" />
+      <Handle type="target" position={Position.Top} id="top-target" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
+      <Handle type="target" position={Position.Left} id="left-target" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
       <Handle type="target" position={Position.Right} id="right-target" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
       <span className="font-semibold text-[13px] leading-none select-none pointer-events-none">+</span>
       <Handle type="source" position={Position.Bottom} id="bottom-source" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
@@ -50,7 +52,7 @@ export default function MegaTree() {
       const state = connectionState?.[0] || connectionState;
       if (state && !state.isValid && state.fromHandle) {
         const handleId = state.fromHandle.id as string;
-        const nodeId   = state.fromNode?.id as string | undefined;
+        const nodeId = state.fromNode?.id as string | undefined;
         if ((handleId === 'add-spouse-right' || handleId === 'add-spouse-left') && nodeId) {
           openAddDrawer({ action: 'add_partner', sourcePersonId: nodeId });
         } else if (handleId === 'add-parent' && nodeId) {
@@ -79,6 +81,9 @@ export default function MegaTree() {
         {nodes.length > 20 && (
           <MiniMap nodeStrokeColor="#8b7355" maskColor="rgba(253,251,247,0.7)" className="!bg-white !shadow-xl !border-none !rounded-lg" />
         )}
+        <Panel position="top-right" style={{ margin: 0, padding: 0 }}>
+          <SearchBar />
+        </Panel>
       </ReactFlow>
     </div>
   );
