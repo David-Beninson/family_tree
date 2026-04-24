@@ -17,7 +17,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
   const isMarried = data.isMarried;
   const parentCount = (data.parentCount) || 0;
 
-  const { links, setFocusUnion } = useFamilyStore();
+  const { links, setFocusUnion, openAddDrawer } = useFamilyStore();
 
   const isMale = person.gender === 'male';
   const currentYear = new Date().getFullYear();
@@ -26,7 +26,6 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
   const colorClass = isMale
     ? 'bg-blue-100 text-blue-900 border-blue-200'
     : 'bg-pink-100 text-rose-900 border-pink-200';
-  const handleColor = isMale ? '!bg-blue-400' : '!bg-pink-400';
 
   const initials = person.fullName
     .split(' ')
@@ -42,42 +41,43 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
 
   const handleFocus = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Find first union where this person is a partner
     const partnerLink = links.find(l => l.personId === person.id && l.role === 'partner');
-    // Or where they are a child
-    const childLink = links.find(l => l.personId === person.id && l.role === 'child');
+    const childLink   = links.find(l => l.personId === person.id && l.role === 'child');
 
-    if (partnerLink) {
-      setFocusUnion(partnerLink.unionId);
-    } else if (childLink) {
-      setFocusUnion(childLink.unionId);
-    } else {
-      window.alert('לאדם זה אין משפחה מקושרת למיקוד');
-    }
+    if (partnerLink)     setFocusUnion(partnerLink.unionId);
+    else if (childLink)  setFocusUnion(childLink.unionId);
+    else                 window.alert('לאדם זה אין משפחה מקושרת למיקוד');
   };
 
-  const handleAlert = () => {
+  const handleOpenCard = () => {
     window.alert(`פעולה זו פותחת את הכרטיס של: ${person.fullName}`);
   };
 
-  // תנאים להצגת נקודות משיכה
-  const showParentTop = parentCount < 2;
-  const showSpouseRight = !isMale && !isMarried && isAdult;
-  const showSpouseLeft = isMale && !isMarried && isAdult;
+  // תנאים להצגת ניצנים
+  const showParentTop    = parentCount < 2;
+  const showSpouseRight  = !isMale && !isMarried && isAdult;
+  const showSpouseLeft   = isMale  && !isMarried && isAdult;
+
+  // handlers לניצנים
+  const handleAddParent = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    openAddDrawer({ action: 'add_parent', sourcePersonId: person.id });
+  };
+
+  const handleAddPartner = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    openAddDrawer({ action: 'add_partner', sourcePersonId: person.id });
+  };
 
   return (
     <div
       className={`relative w-[280px] h-[90px] rounded-2xl border bg-white flex flex-row items-center p-3 shadow-md hover:shadow-lg transition-transform ${colorClass.replace(/bg-.* border-.*/, 'border-slate-200')}`}
       dir="ltr"
     >
-      {/* Side color accent & Photo container */}
+      {/* Photo / initials */}
       <div className={`relative h-[65px] w-[65px] rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm mr-4 ${colorClass.split(' ')[0]}`}>
         {person.photoUrl ? (
-          <img
-            src={person.photoUrl}
-            alt={person.fullName}
-            className="w-full h-full object-cover"
-          />
+          <img src={person.photoUrl} alt={person.fullName} className="w-full h-full object-cover" />
         ) : (
           <span className="text-xl font-bold opacity-70">{initials}</span>
         )}
@@ -88,7 +88,7 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
         <h3 className="font-bold text-[16px] truncate text-slate-800 leading-tight">
           {person.fullName}
         </h3>
-        <span className="text-slate-500 text-[13px] mt-1 font-medium select-none ml-auto" dir="ltr" style={{ textAlign: "right" }}>
+        <span className="text-slate-500 text-[13px] mt-1 font-medium select-none ml-auto" dir="ltr" style={{ textAlign: 'right' }}>
           {dateText}
         </span>
       </div>
@@ -103,33 +103,30 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
         </button>
 
         <button
-          onClick={handleAlert}
+          onClick={handleOpenCard}
           className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
       </div>
 
-      {/* === UNIQUE HANDLES FOR ROUTING (Invisible) === */}
-      <Handle type="source" position={Position.Top} id="top-source" className="opacity-0" />
-      <Handle type="target" position={Position.Top} id="top-target" className="opacity-0" />
+      {/* === Invisible routing handles === */}
+      <Handle type="source" position={Position.Top}    id="top-source"    className="opacity-0" />
+      <Handle type="target" position={Position.Top}    id="top-target"    className="opacity-0" />
       <Handle type="source" position={Position.Bottom} id="bottom-source" className="opacity-0" />
-      <Handle type="source" position={Position.Left} id="left-out" className="opacity-0" />
-      <Handle type="target" position={Position.Left} id="left-in" className="opacity-0" />
-      <Handle type="source" position={Position.Right} id="right-out" className="opacity-0" />
-      <Handle type="target" position={Position.Right} id="right-in" className="opacity-0" />
-      <Handle type="source" position={Position.Right} id="right-out" className="opacity-0" />
-      <Handle type="target" position={Position.Right} id="right-in" className="opacity-0" />
-      <Handle type="source" position={Position.Left} id="left-out" className="opacity-0" />
-      <Handle type="target" position={Position.Left} id="left-in" className="opacity-0" />
+      <Handle type="source" position={Position.Left}   id="left-out"      className="opacity-0" />
+      <Handle type="target" position={Position.Left}   id="left-in"       className="opacity-0" />
+      <Handle type="source" position={Position.Right}  id="right-out"     className="opacity-0" />
+      <Handle type="target" position={Position.Right}  id="right-in"      className="opacity-0" />
 
-      {/* === VISIBLE BUBBLES FOR USER INTERACTION === */}
+      {/* === Visible bud handles === */}
 
       {/* Add Parent (Top) */}
       {showParentTop && (
         <Handle
           type="source" position={Position.Top} id="add-parent"
-          onClick={(e) => { e.stopPropagation(); window.alert('(קליק) פעולה זו תפתח חלון הוספת: הורה לכרטיסייה!'); }}
+          onClick={handleAddParent}
+          title="הוסף הורה"
           className="w-4 h-4 !bg-slate-300 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10"
         />
       )}
@@ -138,7 +135,8 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
       {showSpouseRight && (
         <Handle
           type="source" position={Position.Right} id="add-spouse-right"
-          onClick={(e) => { e.stopPropagation(); window.alert('(קליק) פעולה זו תפתח חלון הוספת: בן/בת זוג!'); }}
+          onClick={handleAddPartner}
+          title="הוסף בן זוג"
           className="w-4 h-4 !bg-blue-400 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10"
         />
       )}
@@ -147,7 +145,8 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
       {showSpouseLeft && (
         <Handle
           type="source" position={Position.Left} id="add-spouse-left"
-          onClick={(e) => { e.stopPropagation(); window.alert('(קליק) פעולה זו תפתח חלון הוספת: בן/בת זוג!'); }}
+          onClick={handleAddPartner}
+          title="הוסף בת זוג"
           className="w-4 h-4 !bg-pink-400 border-2 !border-white shadow-sm transition-transform hover:scale-150 cursor-pointer z-10"
         />
       )}
