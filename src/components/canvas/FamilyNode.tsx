@@ -11,10 +11,11 @@ export type FamilyMemberNode = Node<{
   person: Person;
   isMarried?: boolean;
   parentCount?: number;
+  familyColor?: string;
 }, 'familyMember'>;
 
 export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
-  const { person, isMarried = false, parentCount = 0 } = data;
+  const { person, isMarried = false, parentCount = 0, familyColor } = data;
   const { links, setFocusUnion, openAddDrawer, highlightedNodeId } = useFamilyStore();
   const router = useRouter();
 
@@ -86,6 +87,14 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
 
   return (
     <div className={containerClasses} dir="ltr" onClick={handleOpenCard}>
+      {/* Family Identity Tag */}
+      {familyColor && (
+        <div 
+          className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl z-10"
+          style={{ backgroundColor: familyColor }}
+        />
+      )}
+
       {/* תמונת פרופיל או ראשי תיבות */}
       <div className={`relative h-[65px] w-[65px] rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm mr-4 ${theme.bg}`}>
         {person.photoUrl ? (

@@ -1,28 +1,48 @@
-import { BaseEdge, EdgeProps, getStraightPath } from '@xyflow/react';
+import { BaseEdge, EdgeProps, getStraightPath, getSmoothStepPath, Edge } from '@xyflow/react';
+
+export type FamilyEdgeData = {
+  color?: string;
+  routing?: 'straight' | 'smoothstep';
+};
+
+export type FamilyEdgeType = Edge<FamilyEdgeData, 'familyEdge'>;
 
 export default function FamilyEdge({
   sourceX,
   sourceY,
   targetX,
   targetY,
+  sourcePosition,
+  targetPosition,
   style = {},
   markerEnd,
-}: EdgeProps) {
+  data,
+}: EdgeProps<FamilyEdgeType>) {
 
-  const [edgePath] = getStraightPath({
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-  });
+  const isStraight = data?.routing === 'straight';
+
+  const [edgePath] = isStraight 
+    ? getStraightPath({ sourceX, sourceY, targetX, targetY })
+    : getSmoothStepPath({
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+        sourcePosition,
+        targetPosition,
+        borderRadius: 20,
+      });
+
+  const edgeColor = data?.color || '#94a3b8';
 
   return (
     <BaseEdge
       path={edgePath}
       markerEnd={markerEnd}
       style={{
-        strokeWidth: 2,
-        stroke: '#94a3b8',
+        strokeWidth: 3,
+        stroke: edgeColor,
+        transition: 'stroke 0.3s ease',
         ...style,
       }}
     />

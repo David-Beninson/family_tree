@@ -5,11 +5,21 @@ export const SPACING = {
     CARD_WIDTH: 280,
     CARD_HEIGHT: 90,
     NODE_PADDING: 20,
-    MIN_NODE_GAP: 60,
-    SIBLING_GAP: 120,
-    LEVEL_Y: 250,
+    MIN_NODE_GAP: 30, // Reduced from 60
+    SIBLING_GAP: 40,   // Reduced from 120
+    LEVEL_Y: 200,      // Reduced from 250
     ROOT_Y_START: 0,
 };
+
+export const FAMILY_COLORS = [
+    '#94a3b8', // Default Slate
+    '#6366f1', // Indigo
+    '#ec4899', // Pink
+    '#10b981', // Emerald
+    '#f59e0b', // Amber
+    '#8b5cf6', // Violet
+    '#06b6d4', // Cyan
+];
 
 /**
  * Calculates current hub position for state updates (dragging)
@@ -40,12 +50,10 @@ export function buildGraphLayout(
     const subtreeWidths: Record<string, number> = {};
 
     const visitedHubs = new Set<string>();
+    const visitedPersons = new Set<string>();
 
-    const PARTNER_OFFSET = (SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP) / 2; // = 170
-    const COUPLE_WIDTH = (PARTNER_OFFSET * 2) + SPACING.CARD_WIDTH;          // = 620
-    const PADDED_CARD_WIDTH = SPACING.CARD_WIDTH + (2 * SPACING.NODE_PADDING);
-    const CARD_CENTER_OFFSET = PADDED_CARD_WIDTH / 2;
-
+    const PARTNER_OFFSET = (SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP) / 2;
+    const COUPLE_WIDTH = (PARTNER_OFFSET * 2) + SPACING.CARD_WIDTH;
 
     // --- Helpers ---
     const getPartnerLinks = (pId: string) => links.filter(l => l.personId === pId && l.role === 'partner');
@@ -53,138 +61,209 @@ export function buildGraphLayout(
     const getUnionChildren = (uId: string) => links.filter(l => l.unionId === uId && l.role === 'child').map(l => persons.find(p => p.id === l.personId)).filter(Boolean) as Person[];
     const getParentUnion = (pId: string) => links.find(l => l.personId === pId && l.role === 'child')?.unionId;
 
-    // --- PASS 1: Bottom-Up Width Calculation ---
-    // Two recursive functions calculate the correct width from bottom to top.
-    // Each union reserves enough space for itself + all its descendants.
-
-    // getUnionSubtreeWidth: How much width a single union needs (couple + children + marriages)
-    const getUnionSubtreeWidth = (uId: string): number => {
-        if (unionSubtreeWidths[uId] !== undefined) return unionSubtreeWidths[uId];
-
-        const children = getUnionChildren(uId);
-
-        if (children.length === 0) {
-            unionSubtreeWidths[uId] = COUPLE_WIDTH;
-            return COUPLE_WIDTH;
-        }
-
-        // Total width of children = sum of each child's width + gaps
-        const childrenTotalWidth =
-            children.reduce((sum, c) => sum + getPersonSubtreeWidth(c.id), 0)
-            + (children.length - 1) * SPACING.SIBLING_GAP;
-
-        unionSubtreeWidths[uId] = Math.max(COUPLE_WIDTH, childrenTotalWidth);
-        return unionSubtreeWidths[uId];
+    // Subtree tracking for shifting
+    const subtreeNodes = new Map<string, { persons: Set<string>, unions: Set<string> }>();
+    const registerNodeInSubtree = (uId: string, type: 'person' | 'union', id: string) => {
+        if (!subtreeNodes.has(uId)) subtreeNodes.set(uId, { persons: new Set(), unions: new Set() });
+        const entry = subtreeNodes.get(uId)!;
+        if (type === 'person') entry.persons.add(id);
+        else entry.unions.add(id);
     };
 
-    // getPersonSubtreeWidth: How much width a person needs (including side-by-side marriages)
-    const getPersonSubtreeWidth = (pId: string): number => {
-        if (subtreeWidths[pId] !== undefined) return subtreeWidths[pId];
+    const shiftSubtree = (uId: string, deltaX: number, visited = new Set<string>()) => {
+        if (visited.has(uId)) return;
+        visited.add(uId);
 
-        const myUnions = getPartnerLinks(pId);
-
-        if (myUnions.length === 0) {
-            subtreeWidths[pId] = SPACING.CARD_WIDTH;
-            return SPACING.CARD_WIDTH;
-        }
-
-        // All marriages for this person sit side-by-side
-        const totalWidth = myUnions.reduce(
-            (sum, link, idx) => sum + getUnionSubtreeWidth(link.unionId) + (idx > 0 ? SPACING.SIBLING_GAP : 0),
-            0
-        );
-
-        subtreeWidths[pId] = totalWidth;
-        return totalWidth;
+        const entry = subtreeNodes.get(uId);
+        if (!entry) return;
+        entry.persons.forEach(pId => { if (positions[pId]) positions[pId].x += deltaX; });
+        entry.unions.forEach(unId => { if (hubPositions[unId]) hubPositions[unId].x += deltaX; });
+        // Recurse to children's subtrees
+        getUnionChildren(uId).forEach(child => {
+            getPartnerLinks(child.id).forEach(l => shiftSubtree(l.unionId, deltaX, visited));
+        });
     };
 
-    // Initialize all before placement
-    persons.forEach(p => getPersonSubtreeWidth(p.id));
-    unions.forEach(u => getUnionSubtreeWidth(u.id));
+    // --- PASS 0: Generation Level Pre-Calculation ---
+    // We use an iterative approach to ensure that:
+    // 1. Children are at least max(parents_gen) + 1
+    // 2. Partners in a union are at the SAME level (max of their individual levels)
+    const genLevels: Record<string, number> = {};
+    persons.forEach(p => genLevels[p.id] = 0);
+
+    let changed = true;
+    let iterations = 0;
+    while (changed && iterations < 100) {
+        changed = false;
+        iterations++;
+
+        // Rule 1: Children below parents
+        links.filter(l => l.role === 'child').forEach(l => {
+            const uId = l.unionId;
+            const parents = getUnionPartners(uId);
+            if (parents.length > 0) {
+                const maxParentGen = Math.max(...parents.map(pId => genLevels[pId]));
+                if (genLevels[l.personId] < maxParentGen + 1) {
+                    genLevels[l.personId] = maxParentGen + 1;
+                    changed = true;
+                }
+            }
+        });
+
+        // Rule 2: Partners at the same level
+        unions.forEach(u => {
+            const partners = getUnionPartners(u.id);
+            if (partners.length > 1) {
+                const maxPartnerGen = Math.max(...partners.map(pId => genLevels[pId]));
+                partners.forEach(pId => {
+                    if (genLevels[pId] < maxPartnerGen) {
+                        genLevels[pId] = maxPartnerGen;
+                        changed = true;
+                    }
+                });
+            }
+        });
+    }
+
+    // --- PASS 0.5: Traversal Order ---
+    // Assign a pre-order index to everyone to decide Left/Right partner order.
+    const traversalIndex: Record<string, number> = {};
+    let nextIndex = 0;
+    const visitedForOrder = new Set<string>();
+
+    const assignOrder = (uId: string) => {
+        if (visitedForOrder.has(uId)) return;
+        visitedForOrder.add(uId);
+
+        const partners = getUnionPartners(uId).sort((a, b) => a.localeCompare(b));
+        partners.forEach(pId => {
+            if (traversalIndex[pId] === undefined) traversalIndex[pId] = nextIndex++;
+        });
+
+        const children = getUnionChildren(uId).sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0));
+        children.forEach(child => {
+            if (traversalIndex[child.id] === undefined) traversalIndex[child.id] = nextIndex++;
+            getPartnerLinks(child.id).forEach(l => assignOrder(l.unionId));
+        });
+    };
+
+    // Start traversal from roots
+    const rootUnions = unions.filter(u => {
+        const partners = getUnionPartners(u.id);
+        return partners.every(pId => !getParentUnion(pId));
+    });
+    rootUnions.forEach(u => assignOrder(u.id));
+    // Catch disconnected
+    unions.forEach(u => assignOrder(u.id));
+
+    const sortPartners = (pIds: string[]) => {
+        return [...pIds].sort((a, b) => (traversalIndex[a] ?? 0) - (traversalIndex[b] ?? 0));
+    };
+
+    // Helper: Y coordinate from a person's gen level
+    const genY = (pId: string) => genLevels[pId] * SPACING.LEVEL_Y;
+
+    // Helper: Y for a union = max gen level of its partners * LEVEL_Y
+    const unionY = (uId: string): number => {
+        const partners = getUnionPartners(uId);
+        if (partners.length === 0) return 0;
+        return Math.max(...partners.map(genY));
+    };
+
+    // --- Contour Helpers ---
+    // A contour tracks the left and right extents of a subtree at each Y level.
+    type Contour = { left: Record<number, number>; right: Record<number, number> };
+
+    const getEmptyContour = (): Contour => ({ left: {}, right: {} });
+
+    const mergeContours = (target: Contour, source: Contour, shift: number) => {
+        Object.entries(source.left).forEach(([yStr, x]) => {
+            const y = Number(yStr);
+            const shiftedX = x + shift;
+            if (target.left[y] === undefined || shiftedX < target.left[y]) target.left[y] = shiftedX;
+        });
+        Object.entries(source.right).forEach(([yStr, x]) => {
+            const y = Number(yStr);
+            const shiftedX = x + shift;
+            if (target.right[y] === undefined || shiftedX > target.right[y]) target.right[y] = shiftedX;
+        });
+    };
+
+    const getRequiredShift = (target: Contour, source: Contour): number => {
+        let maxOverlap = 0;
+        const levels = Object.keys(source.left).map(Number);
+        levels.forEach(y => {
+            if (target.right[y] !== undefined && source.left[y] !== undefined) {
+                const overlap = (target.right[y] + SPACING.SIBLING_GAP) - source.left[y];
+                if (overlap > maxOverlap) maxOverlap = overlap;
+            }
+        });
+        return maxOverlap;
+    };
 
     // --- PASS 3: Upwards Placement ---
-    const placeAncestorUnion = (uId: string, anchorCenterX: number, Y: number) => {
+    const placeAncestorUnion = (uId: string, anchorCenterX: number, _Y: number) => {
         if (visitedHubs.has(uId)) return;
 
-        const partners = getUnionPartners(uId);
+        const partners = sortPartners(getUnionPartners(uId));
+        if (partners.length < 2) return;
 
-        const sortedPartners = [...partners].sort((a, b) => a.localeCompare(b));
-        let pRightId = sortedPartners[1] || partners[1];
-        let pLeftId = partners.find(id => id !== pRightId)!;
-
-        const p1HasLineage = !!getParentUnion(sortedPartners[0]);
-        const p2HasLineage = !!getParentUnion(sortedPartners[1]);
-        if (p1HasLineage && !p2HasLineage) {
-            pRightId = sortedPartners[0];
-            pLeftId = sortedPartners[1];
-        } else if (!p1HasLineage && p2HasLineage) {
-            pRightId = sortedPartners[1];
-            pLeftId = sortedPartners[0];
-        }
+        let pLeftId = partners[0];
+        let pRightId = partners[1];
 
         const existingLeft = positions[pLeftId];
         const existingRight = positions[pRightId];
 
-        if (existingLeft && existingRight) {
-            visitedHubs.add(uId);
-            hubPositions[uId] = { x: (existingLeft.x + existingRight.x) / 2, y: Y + (SPACING.CARD_HEIGHT / 2) };
-            return;
-        }
-
         let finalHubX = anchorCenterX;
-        if (existingLeft && !existingRight) {
+        if (existingLeft && existingRight) {
+            finalHubX = (existingLeft.x + existingRight.x) / 2 + (SPACING.CARD_WIDTH / 2);
+        } else if (existingLeft) {
             finalHubX = existingLeft.x + PARTNER_OFFSET;
-        } else if (existingRight && !existingLeft) {
+        } else if (existingRight) {
             finalHubX = existingRight.x - PARTNER_OFFSET;
         }
 
+        // Use gen-level based Y for ancestor unions too
+        const ancY = unionY(uId);
         visitedHubs.add(uId);
-        hubPositions[uId] = { x: finalHubX, y: Y + (SPACING.CARD_HEIGHT / 2) };
+        hubPositions[uId] = { x: finalHubX, y: ancY + (SPACING.CARD_HEIGHT / 2) };
 
-        if (!positions[pLeftId]) positions[pLeftId] = { x: finalHubX - PARTNER_OFFSET, y: Y };
-        if (!positions[pRightId]) positions[pRightId] = { x: finalHubX + PARTNER_OFFSET, y: Y };
+        if (!positions[pLeftId]) {
+            positions[pLeftId] = { x: finalHubX - PARTNER_OFFSET, y: genY(pLeftId) };
+            visitedPersons.add(pLeftId);
+        }
+        if (!positions[pRightId]) {
+            positions[pRightId] = { x: finalHubX + PARTNER_OFFSET, y: genY(pRightId) };
+            visitedPersons.add(pRightId);
+        }
 
         [pLeftId, pRightId].forEach(pId => {
             const parentUId = getParentUnion(pId);
-            if (parentUId) {
-                placeAncestorUnion(parentUId, positions[pId].x + CARD_CENTER_OFFSET, Y - SPACING.LEVEL_Y);
+            if (parentUId && !visitedHubs.has(parentUId)) {
+                placeAncestorUnion(parentUId, positions[pId].x + (SPACING.CARD_WIDTH / 2), 0);
             }
         });
     };
 
     // --- PASS 2: Downwards Placement with Anchoring ---
-    const placeUnion = (uId: string, hubX: number, Y: number, context?: { type: 'pivot' | 'child', sourceId: string, direction?: 1 | -1 }) => {
-        if (visitedHubs.has(uId)) return;
+    // Y is now derived from genLevels (Pass 0), not passed as a relative offset.
+    const placeUnion = (uId: string, hubX: number, _Y: number, context?: { type: 'pivot' | 'child', sourceId: string, direction?: 1 | -1 }): Contour => {
+        // Override Y with the absolute generation-level Y
+        const Y = unionY(uId);
+        if (visitedHubs.has(uId)) return getEmptyContour();
 
         const u = unions.find(un => un.id === uId);
-        if (!u) return;
+        if (!u) return getEmptyContour();
 
-        const partners = getUnionPartners(uId);
-        if (partners.length !== 2) return;
+        const partners = sortPartners(getUnionPartners(uId));
+        if (partners.length !== 2) return getEmptyContour();
 
-        const sortedPartners = [...partners].sort((a, b) => a.localeCompare(b));
-        let pLeftId = sortedPartners[0];
-        let pRightId = sortedPartners[1];
-
-        const p1HasLineage = !!getParentUnion(sortedPartners[0]);
-        const p2HasLineage = !!getParentUnion(sortedPartners[1]);
-
-        if (p1HasLineage && !p2HasLineage) {
-            pRightId = sortedPartners[0];
-            pLeftId = sortedPartners[1];
-        } else if (!p1HasLineage && p2HasLineage) {
-            pRightId = sortedPartners[1];
-            pLeftId = sortedPartners[0];
-        }
+        let pLeftId = partners[0];
+        let pRightId = partners[1];
 
         if (context?.type === 'pivot' && context.direction) {
-            if (context.direction === 1) {
-                pLeftId = context.sourceId;
-                pRightId = partners.find(id => id !== context.sourceId)!;
-            } else {
-                pRightId = context.sourceId;
-                pLeftId = partners.find(id => id !== context.sourceId)!;
-            }
+            // Keep the pivot partner in their requested direction if possible, 
+            // but traversalIndex usually handles this naturally.
         }
 
         const existingLeft = positions[pLeftId];
@@ -193,118 +272,152 @@ export function buildGraphLayout(
         let finalHubX = hubX;
 
         // Hub Anchoring
-        if (context) {
-            finalHubX = hubX;
-        } else {
-            if (existingLeft && !existingRight) {
-                finalHubX = existingLeft.x + PARTNER_OFFSET;
-            } else if (existingRight && !existingLeft) {
-                finalHubX = existingRight.x - PARTNER_OFFSET;
-            } else if (existingLeft && existingRight) {
-                finalHubX = (existingLeft.x + existingRight.x) / 2;
-            }
+        if (existingLeft && existingRight) {
+            finalHubX = (existingLeft.x + existingRight.x) / 2 + (SPACING.CARD_WIDTH / 2);
+        } else if (existingLeft) {
+            finalHubX = context?.direction === 1 ? Math.max(hubX, existingLeft.x + PARTNER_OFFSET) : hubX;
+        } else if (existingRight) {
+            finalHubX = context?.direction === -1 ? Math.min(hubX, existingRight.x - PARTNER_OFFSET) : hubX;
         }
 
         visitedHubs.add(uId);
         hubPositions[uId] = { x: finalHubX, y: Y + (SPACING.CARD_HEIGHT / 2) };
+        registerNodeInSubtree(uId, 'union', uId);
 
-        if (!existingLeft) positions[pLeftId] = { x: finalHubX - PARTNER_OFFSET, y: Y };
-        if (!existingRight) positions[pRightId] = { x: finalHubX + PARTNER_OFFSET, y: Y };
+        if (!existingLeft) {
+            positions[pLeftId] = { x: finalHubX - PARTNER_OFFSET, y: genY(pLeftId) };
+            visitedPersons.add(pLeftId);
+            registerNodeInSubtree(uId, 'person', pLeftId);
+        }
+        if (!existingRight) {
+            positions[pRightId] = { x: finalHubX + PARTNER_OFFSET, y: genY(pRightId) };
+            visitedPersons.add(pRightId);
+            registerNodeInSubtree(uId, 'person', pRightId);
+        }
+
+        const myContour = getEmptyContour();
+        // Add partners to contour at their actual Y levels
+        [pLeftId, pRightId].forEach(pId => {
+            const py = genY(pId);
+            const px = positions[pId].x;
+            if (myContour.left[py] === undefined || px < myContour.left[py]) myContour.left[py] = px;
+            if (myContour.right[py] === undefined || px + SPACING.CARD_WIDTH > myContour.right[py]) myContour.right[py] = px + SPACING.CARD_WIDTH;
+        });
+        // Add hub level to contour
+        if (myContour.left[Y] === undefined || (finalHubX - 10) < myContour.left[Y]) myContour.left[Y] = finalHubX - 10;
+        if (myContour.right[Y] === undefined || (finalHubX + 10) > myContour.right[Y]) myContour.right[Y] = finalHubX + 10;
 
         const handlePivot = (pId: string, isRight: boolean) => {
             const otherUnions = getPartnerLinks(pId).filter(l => l.unionId !== uId);
             const direction = isRight ? 1 : -1;
-            const anchorX = positions[pId].x;
-
-            let hubX = isRight
-                ? anchorX + PARTNER_OFFSET
-                : anchorX - PARTNER_OFFSET;
+            let currentHubX = finalHubX + (PARTNER_OFFSET * 2) * direction;
 
             otherUnions.forEach(link => {
                 if (visitedHubs.has(link.unionId)) return;
-                const uOtherWidth = getUnionSubtreeWidth(link.unionId);
-
-                placeUnion(link.unionId, hubX, Y, { type: 'pivot', sourceId: pId, direction: direction as 1 | -1 });
-
-                const childrenExtra = Math.max(0, uOtherWidth - COUPLE_WIDTH);
-                const advance = (SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP + childrenExtra) * direction;
-                hubX += advance;
+                const pivotContour = placeUnion(link.unionId, currentHubX, Y, { type: 'pivot', sourceId: pId, direction: direction as 1 | -1 });
+                const shift = direction === 1 ? getRequiredShift(myContour, pivotContour) : -getRequiredShift(pivotContour, myContour);
+                if (shift !== 0) {
+                    shiftSubtree(link.unionId, shift);
+                    mergeContours(myContour, pivotContour, shift);
+                } else {
+                    mergeContours(myContour, pivotContour, 0);
+                }
             });
         };
-
 
         handlePivot(pLeftId, false);
         handlePivot(pRightId, true);
 
-        // Recursive Pass 3 for parents
-        [pLeftId, pRightId].forEach(pId => {
-            const parentUId = getParentUnion(pId);
-            if (parentUId && !visitedHubs.has(parentUId)) {
-                placeAncestorUnion(parentUId, positions[pId].x + CARD_CENTER_OFFSET, Y - SPACING.LEVEL_Y);
-            }
-        });
-
         const children = getUnionChildren(uId).sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0));
         if (children.length > 0) {
-            const totalChildrenWidth =
-                children.reduce((sum, c) => sum + getPersonSubtreeWidth(c.id), 0)
-                + (children.length - 1) * SPACING.SIBLING_GAP;
-
-            let currentChildX = finalHubX - (totalChildrenWidth / 2);
+            const childrenEntries: { contour: Contour, id: string, type: 'union' | 'person' }[] = [];
+            const packedContours = getEmptyContour();
 
             children.forEach(child => {
-                const childPersonWidth = getPersonSubtreeWidth(child.id);
                 const childUnions = getPartnerLinks(child.id);
-
                 if (childUnions.length > 0 && !visitedHubs.has(childUnions[0].unionId)) {
                     const primaryUnionId = childUnions[0].unionId;
-                    const primaryUnionWidth = getUnionSubtreeWidth(primaryUnionId);
-                    const primaryHubX = currentChildX + PARTNER_OFFSET;
-
-                    placeUnion(primaryUnionId, primaryHubX, Y + SPACING.LEVEL_Y, { type: 'child', sourceId: child.id });
-
-                    // Pivot unions: continue from the right edge of the primary union
-                    let pivotStartX = currentChildX + primaryUnionWidth;
-                    childUnions.slice(1).forEach(link => {
-                        if (visitedHubs.has(link.unionId)) return;
-                        const pivotUnionWidth = getUnionSubtreeWidth(link.unionId);
-                        const pivotHubX = pivotStartX + PARTNER_OFFSET;
-                        placeUnion(link.unionId, pivotHubX, Y + SPACING.LEVEL_Y, { type: 'pivot', sourceId: child.id, direction: 1 });
-                        pivotStartX += pivotUnionWidth + SPACING.SIBLING_GAP;
-                    });
-                } else if (!positions[child.id]) {
-                    positions[child.id] = {
-                        x: currentChildX + (childPersonWidth / 2) - (SPACING.CARD_WIDTH / 2),
-                        y: Y + SPACING.LEVEL_Y
-                    };
+                    // Pass 0 genLevel determines the real Y; _Y hint is ignored inside placeUnion
+                    const c = placeUnion(primaryUnionId, finalHubX, 0, { type: 'child', sourceId: child.id });
+                    const shift = getRequiredShift(packedContours, c);
+                    if (shift !== 0) shiftSubtree(primaryUnionId, shift);
+                    mergeContours(packedContours, c, shift);
+                    childrenEntries.push({ contour: c, id: primaryUnionId, type: 'union' });
+                } else if (!visitedPersons.has(child.id)) {
+                    const c = getEmptyContour();
+                    const childY = genY(child.id);
+                    const idealX = finalHubX - (SPACING.CARD_WIDTH / 2);
+                    c.left[childY] = idealX;
+                    c.right[childY] = idealX + SPACING.CARD_WIDTH;
+                    
+                    const shift = getRequiredShift(packedContours, c);
+                    const finalX = idealX + shift;
+                    positions[child.id] = { x: finalX, y: childY };
+                    visitedPersons.add(child.id);
+                    registerNodeInSubtree(uId, 'person', child.id);
+                    
+                    c.left[childY] = finalX;
+                    c.right[childY] = finalX + SPACING.CARD_WIDTH;
+                    mergeContours(packedContours, c, 0);
+                    childrenEntries.push({ contour: c, id: child.id, type: 'person' });
                 }
-
-                currentChildX += childPersonWidth + SPACING.SIBLING_GAP;
             });
+
+            // Centering children under parent
+            const minX = Math.min(...Object.values(packedContours.left));
+            const maxX = Math.max(...Object.values(packedContours.right));
+            const childrenWidth = maxX - minX;
+            const globalShift = finalHubX - (minX + childrenWidth / 2);
+            
+            if (globalShift !== 0) {
+                childrenEntries.forEach(ce => {
+                    if (ce.type === 'union') shiftSubtree(ce.id, globalShift);
+                    else if (positions[ce.id]) positions[ce.id].x += globalShift;
+                });
+                mergeContours(myContour, packedContours, globalShift);
+            } else {
+                mergeContours(myContour, packedContours, 0);
+            }
         }
+
+        return myContour;
     };
 
     // --- EXECUTION ---
     if (focusUnionId) {
         placeUnion(focusUnionId, 0, SPACING.ROOT_Y_START);
     } else {
-        let currentXOffset = 0;
-
         const rootUnions = unions.filter(u => {
             const partners = getUnionPartners(u.id);
             return partners.every(pId => !getParentUnion(pId));
         });
 
-        const allUnionsToProcess = [...rootUnions, ...unions];
+        const overallContour = getEmptyContour();
 
-        allUnionsToProcess.forEach(u => {
+        rootUnions.forEach(u => {
             if (!visitedHubs.has(u.id)) {
-                placeUnion(u.id, currentXOffset, SPACING.ROOT_Y_START);
-                const widthUsed = getUnionSubtreeWidth(u.id);
-                currentXOffset += widthUsed + (SPACING.SIBLING_GAP * 2);
+                const c = placeUnion(u.id, 0, SPACING.ROOT_Y_START);
+                const shift = getRequiredShift(overallContour, c);
+                if (shift !== 0) shiftSubtree(u.id, shift);
+                mergeContours(overallContour, c, shift);
+            }
+        });
+
+        // Catch any disconnected unions
+        unions.forEach(u => {
+            if (!visitedHubs.has(u.id)) {
+                const c = placeUnion(u.id, 0, SPACING.ROOT_Y_START);
+                const shift = getRequiredShift(overallContour, c);
+                if (shift !== 0) shiftSubtree(u.id, shift);
+                mergeContours(overallContour, c, shift);
             }
         });
     }
+
+    const getUnionColor = (uId: string) => {
+        const index = unions.findIndex(u => u.id === uId);
+        return FAMILY_COLORS[(index + 1) % FAMILY_COLORS.length];
+    };
 
     // --- FINAL NODE CONVERSION ---
     persons.forEach(p => {
@@ -316,7 +429,9 @@ export function buildGraphLayout(
             return un && (un.status === 'married' || un.status === 'partnered');
         });
 
-        const parentCount = getParentUnion(p.id) ? 2 : 0;
+        const parentUId = getParentUnion(p.id);
+        const parentCount = parentUId ? 2 : 0;
+        const familyColor = parentUId ? getUnionColor(parentUId) : undefined;
 
         rfNodes.push({
             id: p.id,
@@ -325,16 +440,22 @@ export function buildGraphLayout(
             width: SPACING.CARD_WIDTH,
             height: SPACING.CARD_HEIGHT,
             draggable: false,
-            data: { person: p, isMarried: hasActiveSpouse, parentCount }
+            data: { 
+                person: p, 
+                isMarried: hasActiveSpouse, 
+                parentCount,
+                familyColor 
+            }
         });
     });
 
     unions.forEach(u => {
         if (!hubPositions[u.id]) return;
-        const partners = getUnionPartners(u.id);
+        const partners = sortPartners(getUnionPartners(u.id));
         const children = getUnionChildren(u.id);
         const hasChildren = children.length > 0;
         const isDivorced = u.status === 'divorced';
+        const color = getUnionColor(u.id);
 
         rfNodes.push({
             id: `union-hub-${u.id}`,
@@ -343,26 +464,38 @@ export function buildGraphLayout(
             width: 20,
             height: 20,
             draggable: false,
-            data: { hasChildren, isDivorced, unionId: u.id }
+            data: { hasChildren, isDivorced, unionId: u.id, color }
         });
 
-        const p1Nodes = rfNodes.filter(n => n.id === partners[0] || n.id === partners[1]);
-        if (p1Nodes.length < 2) return;
+        // Edges: Partners to Hub
+        partners.forEach((pId, idx) => {
+            if (!positions[pId]) return;
+            const isLeft = idx === 0;
+            rfEdges.push({
+                id: `edge-${pId}-${u.id}`,
+                source: pId,
+                target: `union-hub-${u.id}`,
+                type: 'familyEdge',
+                sourceHandle: isLeft ? 'right-out' : 'left-out',
+                targetHandle: isLeft ? 'left-target' : 'right-target',
+                data: { color, routing: 'straight' },
+                style: { stroke: color, strokeWidth: 3 }
+            });
+        });
 
-        const node1 = p1Nodes[0];
-        const node2 = p1Nodes[1];
-        const p1IsRight = node1.position.x > node2.position.x;
-
-        if (u.status === 'married' || u.status === 'partnered') {
-            rfEdges.push({ id: `e1-${u.id}`, source: node1.id, target: `union-hub-${u.id}`, sourceHandle: p1IsRight ? 'left-out' : 'right-out', targetHandle: p1IsRight ? 'right-target' : 'left-target', type: 'straight' });
-            rfEdges.push({ id: `e2-${u.id}`, source: node2.id, target: `union-hub-${u.id}`, sourceHandle: p1IsRight ? 'right-out' : 'left-out', targetHandle: p1IsRight ? 'left-target' : 'right-target', type: 'straight' });
-        } else {
-            rfEdges.push({ id: `e1-${u.id}`, source: node1.id, target: `union-hub-${u.id}`, sourceHandle: 'bottom-source', targetHandle: 'top-target', type: 'straight' });
-            rfEdges.push({ id: `e2-${u.id}`, source: node2.id, target: `union-hub-${u.id}`, sourceHandle: 'bottom-source', targetHandle: 'top-target', type: 'straight' });
-        }
-
-        children.forEach(c => {
-            rfEdges.push({ id: `c-${u.id}-${c.id}`, source: `union-hub-${u.id}`, target: c.id, sourceHandle: 'bottom-source', targetHandle: 'top-target', type: 'smoothstep' });
+        // Edges: Hub to Children
+        children.forEach(child => {
+            if (!positions[child.id]) return;
+            rfEdges.push({
+                id: `edge-hub-${u.id}-${child.id}`,
+                source: `union-hub-${u.id}`,
+                target: child.id,
+                type: 'familyEdge',
+                sourceHandle: 'bottom-source',
+                targetHandle: 'top-target',
+                data: { color, routing: 'smoothstep' },
+                style: { stroke: color, strokeWidth: 3 }
+            });
         });
     });
 
