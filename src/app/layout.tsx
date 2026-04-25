@@ -9,7 +9,7 @@ const rubik = Rubik({
 });
 
 export const metadata: Metadata = {
-  title: 'Family Roots',
+  title: 'Family Tree',
   description: 'Professional Genealogy Management System',
 };
 
