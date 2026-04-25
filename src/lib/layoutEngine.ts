@@ -1,32 +1,15 @@
 import { Edge, Node } from '@xyflow/react';
 import { Person, Union, PersonUnionLink } from './types';
-
-export const SPACING = {
-    CARD_WIDTH: 280,
-    CARD_HEIGHT: 90,
-    MIN_NODE_GAP: 20,
-    SIBLING_GAP: 40,
-    LEVEL_Y: 280,
-    ROOT_Y_START: 0,
-};
-
-export const FAMILY_COLORS = [
-    '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
-    '#8b5cf6', '#ec4899', '#6fff00ff', '#f97316',
-    '#06b6d4', '#14b8a6', '#84cc16', '#6366f1',
-    '#d946ef', '#f43f5e', '#0ea5e9', '#eab308',
-    '#a855f7', '#1d4ed8', '#047857', '#be123c',
-    '#fb923c', '#4ade80'
-];
-
-export const calculateHubPosition = (p1Pos: { x: number, y: number }, p2Pos: { x: number, y: number }, status: Union['status'], hasChildren: boolean) => {
-    const centerX = (p1Pos.x + p2Pos.x) / 2 + (SPACING.CARD_WIDTH / 2);
-    let centerY = p1Pos.y + (SPACING.CARD_HEIGHT / 2);
-    if (status === 'divorced' && hasChildren) {
-        centerY = Math.max(p1Pos.y, p2Pos.y) + SPACING.CARD_HEIGHT + 100;
-    }
-    return { x: centerX, y: centerY };
-};
+import { SPACING, FAMILY_COLORS } from './layoutConstants';
+import {
+    getPartnerLinks as _getPartnerLinks,
+    getUnionPartners as _getUnionPartners,
+    getUnionChildren as _getUnionChildren,
+    getParentUnion as _getParentUnion,
+    isPolyParent as _isPolyParent,
+    calculatePersonWidth as _calculatePersonWidth,
+    calculateUnionWidth as _calculateUnionWidth
+} from './layoutHelpers';
 
 export function buildGraphLayout(
     persons: Person[],
@@ -41,43 +24,13 @@ export function buildGraphLayout(
     const positions = new Map<string, { x: number, y: number }>();
     const hubPositions = new Map<string, { x: number, y: number }>();
 
-    const getPartnerLinks = (pId: string) => links.filter(l => l.personId === pId && l.role === 'partner');
-    const getUnionPartners = (uId: string) => links.filter(l => l.unionId === uId && l.role === 'partner').map(l => l.personId);
-    const getUnionChildren = (uId: string) => links.filter(l => l.unionId === uId && l.role === 'child').map(l => persons.find(p => p.id === l.personId)).filter(Boolean).sort((a, b) => (a!.birthYear ?? Infinity) - (b!.birthYear ?? Infinity)) as Person[];
-    const getParentUnion = (pId: string) => links.find(l => l.personId === pId && l.role === 'child')?.unionId;
-    const isPolyParent = (pId: string) => getPartnerLinks(pId).length >= 3;
-
-    const calculatePersonWidth = (pId: string, visited: Set<string>): number => {
-        const myUnions = getPartnerLinks(pId).map(l => l.unionId).filter(uId => !visited.has(uId));
-        if (myUnions.length === 0) return SPACING.CARD_WIDTH;
-
-        let totalUnionsWidth = 0;
-        myUnions.forEach((uId, idx) => {
-            totalUnionsWidth += calculateUnionWidth(uId, visited);
-            if (idx < myUnions.length - 1) totalUnionsWidth += SPACING.SIBLING_GAP;
-        });
-
-        return Math.max(SPACING.CARD_WIDTH, totalUnionsWidth);
-    };
-
-    const calculateUnionWidth = (uId: string, visited: Set<string> = new Set()): number => {
-        if (visited.has(uId)) return 0;
-        visited.add(uId);
-
-        const partners = getUnionPartners(uId);
-        const parentsWidth = partners.length * SPACING.CARD_WIDTH + Math.max(0, partners.length - 1) * SPACING.MIN_NODE_GAP;
-
-        const children = getUnionChildren(uId);
-        if (children.length === 0) return parentsWidth;
-
-        let childrenTotalWidth = 0;
-        children.forEach((child, idx) => {
-            childrenTotalWidth += calculatePersonWidth(child.id, visited);
-            if (idx < children.length - 1) childrenTotalWidth += SPACING.SIBLING_GAP;
-        });
-
-        return Math.max(parentsWidth, childrenTotalWidth);
-    };
+    const getPartnerLinks = (pId: string) => _getPartnerLinks(pId, links);
+    const getUnionPartners = (uId: string) => _getUnionPartners(uId, links);
+    const getUnionChildren = (uId: string) => _getUnionChildren(uId, persons, links);
+    const getParentUnion = (pId: string) => _getParentUnion(pId, links);
+    const isPolyParent = (pId: string) => _isPolyParent(pId, links);
+    const calculatePersonWidth = (pId: string, visited: Set<string>) => _calculatePersonWidth(pId, visited, persons, links);
+    const calculateUnionWidth = (uId: string, visited: Set<string> = new Set()) => _calculateUnionWidth(uId, visited, persons, links);
 
     // --- PASS 1: Strict Generation Assignment (Y-Axis) ---
     const genLevels: Record<string, number> = {};
@@ -448,7 +401,7 @@ export function buildGraphLayout(
             } else {
                 const uNode = placementNodesMap.get(node.id);
                 const isLeftAligned = uNode?.isLeftAligned;
-                
+
                 const hubX = absoluteX;
                 const hubCenterX = hubX + 10;
                 const partners = getUnionPartners(node.id);
@@ -458,9 +411,9 @@ export function buildGraphLayout(
 
                 const offset = (SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP) / 2;
                 const parent1Id = partners.find(pId => !node.spouses?.includes(pId));
-                
+
                 if (parent1Id) {
-                    const p1X = isLeftAligned 
+                    const p1X = isLeftAligned
                         ? hubCenterX + offset - (SPACING.CARD_WIDTH / 2)
                         : hubCenterX - offset - (SPACING.CARD_WIDTH / 2);
                     positions.set(parent1Id, { x: p1X, y: genLevels[parent1Id] * SPACING.LEVEL_Y });

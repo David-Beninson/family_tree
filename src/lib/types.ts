@@ -80,3 +80,32 @@ export type LayoutRegistry = {
   unions: Record<string, { x: number; y: number }>;
   boundingBoxes: Record<string, BoundingBox>;
 };
+
+export interface PersonFormData {
+  fullName: string;
+  birthYear?: number;
+  gender: 'male' | 'female' | 'other';
+  isAlive: boolean;
+  maidenName?: string;
+  birthDate?: string;
+  birthPlace?: string;
+  deathYear?: number;
+  deathDate?: string;
+  deathPlace?: string;
+  burialPlace?: string;
+  photoUrl?: string;
+  phoneNumber?: string;
+  email?: string;
+  address?: { country?: string; city?: string; street?: string };
+  occupation?: string;
+  bio?: string;
+  socialLinks?: { facebook?: string; instagram?: string; linkedin?: string };
+  existingPersonId?: string;
+}
+
+export interface AddFamilyMemberPayload {
+  primary: PersonFormData;
+  unionStatus?: Union['status'];
+  unionMarriageYear?: number;
+  secondParent?: PersonFormData;
+}
