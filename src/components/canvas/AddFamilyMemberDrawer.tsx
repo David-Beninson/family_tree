@@ -6,7 +6,7 @@ import { useFamilyStore, PersonFormData, AddFamilyMemberPayload } from '../../li
 import { Person, Union } from '../../lib/types';
 
 const CY = new Date().getFullYear();
-const EMPTY: PersonFormData = { fullName: '', birthYear: 1980, gender: 'female', isAlive: true };
+const EMPTY: PersonFormData = { fullName: '', gender: 'female', isAlive: true };
 
 // --- Tabs ---------------------------------------------------------------------
 const TABS = ['בסיסי', 'פרטי קשר', 'ביוגרפיה'] as const;
@@ -51,7 +51,7 @@ function Autocomplete({ value, onChange, onSelect, onClear, persons, locked }: {
             <button key={p.id} onMouseDown={() => { onSelect(p); setOpen(false); }}
               className="w-full flex justify-between items-center px-3 py-2 text-sm hover:bg-indigo-50 border-b border-slate-100 last:border-0" dir="rtl">
               <span className="font-semibold text-slate-800">{p.fullName}</span>
-              <span className="text-slate-400 text-xs">{p.birthYear}</span>
+              <span className="text-slate-400 text-xs">{p.birthYear ?? '?'}</span>
             </button>
           ))}
         </div>
@@ -122,7 +122,7 @@ function PersonForm({ form, onChange, persons, tab }: {
           <div className="flex gap-2">
             <div className="flex-1">
               <Lbl>שנת לידה</Lbl>
-              <Inp type="number" min={1900} max={CY} value={form.birthYear} onChange={e => set('birthYear', +e.target.value)} />
+              <Inp type="number" min={1900} max={CY} value={form.birthYear ?? ''} onChange={e => set('birthYear', e.target.value ? +e.target.value : undefined)} placeholder="אופציונלי" />
             </div>
             <div className="flex-1">
               <Lbl>תאריך לידה מלא</Lbl>
@@ -249,9 +249,8 @@ export default function AddFamilyMemberDrawer() {
   useEffect(() => {
     if (!addDrawerOpen) return;
     const g = sourcePerson ? (sourcePerson.gender === 'male' ? 'female' : 'male') : 'female';
-    const by = sourcePerson?.birthYear ?? (sourceUnion?.marriageYear ? sourceUnion.marriageYear + 1 : 1980);
-    setPrimary({ ...EMPTY, gender: g, birthYear: by });
-    setSecondParent({ ...EMPTY, gender: g === 'male' ? 'female' : 'male' });
+    setPrimary({ ...EMPTY, gender: g, birthYear: undefined });
+    setSecondParent({ ...EMPTY, gender: g === 'male' ? 'female' : 'male', birthYear: undefined });
     setShowSecond(false);
     setTab('בסיסי');
     setUStatus('married');

@@ -6,7 +6,7 @@ export type Person = {
   maidenName?: string;
 
   // --- Dates and Locations ---
-  birthYear: number;
+  birthYear?: number;
   birthDate?: string;
   birthPlace?: string;
 

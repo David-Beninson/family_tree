@@ -12,6 +12,7 @@ import {
   CoordinateExtent,
   NodeProps,
   Node,
+  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { FamilyNode } from './FamilyNode';
@@ -21,7 +22,6 @@ import SearchBar from './SearchBar';
 
 function ConditionalMiniMap() {
   const { zoom } = useViewport();
-  // Only show minimap when reasonably zoomed in (zoom > 0.6)
   if (zoom < 0.6) return null;
 
   return (
@@ -31,6 +31,29 @@ function ConditionalMiniMap() {
       className="!bg-white !shadow-xl !border-none !rounded-lg"
     />
   );
+}
+
+function FocusController() {
+  const { pendingFocusNodeId, setPendingFocusNodeId, setHighlightedNode } = useFamilyStore();
+  const { setCenter, getNode } = useReactFlow();
+
+  useEffect(() => {
+    if (pendingFocusNodeId) {
+      const node = getNode(pendingFocusNodeId);
+      if (node) {
+        const x = node.position.x + (node.measured?.width ?? 280) / 2;
+        const y = node.position.y + (node.measured?.height ?? 90) / 2;
+        setCenter(x, y, { zoom: 1.2, duration: 700 });
+
+        setHighlightedNode(pendingFocusNodeId);
+        setTimeout(() => setHighlightedNode(null), 2500);
+
+        setPendingFocusNodeId(null);
+      }
+    }
+  }, [pendingFocusNodeId, getNode, setCenter, setHighlightedNode, setPendingFocusNodeId]);
+
+  return null;
 }
 
 type UnionNodeData = Node<{ unionId: string }, 'union'>;
@@ -51,9 +74,9 @@ const UnionNode = ({ data }: NodeProps<UnionNodeData>) => {
       title="הוסף ילד/ה לזוג זה"
       className="relative flex justify-center items-center w-5 h-5 bg-slate-800 text-white rounded-full cursor-pointer hover:bg-indigo-600 hover:scale-125 shadow-md transition-all z-20 group"
     >
-      <Handle type="target" position={Position.Top} id="top-target" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
-      <Handle type="target" position={Position.Left} id="left-target" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
-      <Handle type="target" position={Position.Right} id="right-target" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
+      <Handle type="target" position={Position.Top} id="top-target" className="opacity-0 w-4 h-4 border-0" style={{ top: -8 }} />
+      <Handle type="target" position={Position.Left} id="left-target" className="opacity-0 w-4 h-4 border-0" style={{ left: -8 }} />
+      <Handle type="target" position={Position.Right} id="right-target" className="opacity-0 w-4 h-4 border-0" style={{ right: -8 }} />
       <span className="font-semibold text-[13px] leading-none select-none pointer-events-none">+</span>
       <Handle type="source" position={Position.Bottom} id="bottom-source" className="opacity-0 w-1 h-1 pointer-events-none border-0" />
     </div>
@@ -61,7 +84,7 @@ const UnionNode = ({ data }: NodeProps<UnionNodeData>) => {
 };
 
 export default function MegaTree() {
-  const { nodes, edges, onNodesChange, onEdgesChange, rebuildGraph, openAddDrawer } = useFamilyStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, rebuildGraph, openAddDrawer, connectExistingNodes } = useFamilyStore();
   const [minZoom, setMinZoom] = useState(0.05);
   const [translateExtent, setTranslateExtent] = useState<CoordinateExtent>([[-3000, -3000], [3000, 3000]]);
 
@@ -118,11 +141,27 @@ export default function MegaTree() {
   }, [treeBounds]);
 
   const nodeTypes = useMemo(() => ({ familyMember: FamilyNode, union: UnionNode }), []);
-  const edgeTypes = useMemo(() => ({ family: FamilyEdge }), []);
+  const edgeTypes = useMemo(() => ({ familyEdge: FamilyEdge }), []);
+
+  const onConnect = useCallback((connection: any) => {
+    const { source, sourceHandle, target } = connection;
+
+    // Spouse to Spouse connection
+    if (sourceHandle?.includes('spouse') && !target.startsWith('union-hub')) {
+      connectExistingNodes('spouse', source, target);
+    }
+    // Child to Union connection
+    else if (sourceHandle === 'add-parent' && target.startsWith('union-hub')) {
+      const unionId = target.replace('union-hub-', '');
+      connectExistingNodes('child_to_union', source, unionId);
+    }
+  }, [connectExistingNodes]);
 
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: any) => {
       const state = connectionState?.[0] || connectionState;
+
+      // Only open drawer if connection failed (didn't land on a valid target)
       if (state && !state.isValid && state.fromHandle) {
         const handleId = state.fromHandle.id as string;
         const nodeId = state.fromNode?.id as string | undefined;
@@ -141,14 +180,16 @@ export default function MegaTree() {
       <ReactFlow
         nodes={nodes} edges={edges}
         onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
         onConnectEnd={onConnectEnd}
         nodeTypes={nodeTypes} edgeTypes={edgeTypes}
-        nodesDraggable={false} nodesConnectable={false} elementsSelectable={true}
+        nodesDraggable={false} nodesConnectable={true} elementsSelectable={true}
         fitView minZoom={minZoom} maxZoom={1.5}
         nodeExtent={[[-5000, -5000], [5000, 5000]]}
         translateExtent={translateExtent}
         className="bg-transparent"
       >
+        <FocusController />
         <Background color="#e2e2e2" gap={20} />
         {nodes.length > 5 && <ConditionalMiniMap />}
         <Panel position="top-center" style={{ marginTop: '24px', zIndex: 50 }}>

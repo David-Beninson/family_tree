@@ -47,7 +47,6 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
       : 'shadow-md hover:shadow-lg border-slate-200'
   ].join(' ');
 
-  // הפקת ראשי תיבות לתמונת ברירת מחדל (למשל: "ישראל ישראלי" -> "יי")
   const initials = person.fullName
     .split(' ')
     .filter(Boolean)
@@ -56,7 +55,6 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
     .join('')
     .toUpperCase();
 
-  // עיצוב שנות חיים: מניעת הדפסת מקף בודד (" - ") אם אין נתונים למתים
   const dateText = person.isAlive
     ? (person.birthYear ? String(person.birthYear) : '')
     : (person.birthYear || person.deathYear)
@@ -80,16 +78,15 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
     openAddDrawer({ action: 'add_partner', sourcePersonId: person.id });
   };
 
-  // לוגיקת הצגת כפתורי הוספה מהירה (Buds)
-  const showParentTop = parentCount < 2; // מאפשר הוספת הורים רק אם חסר אבא או אמא
-  const showSpouseRight = !isMale && !isMarried && isAdult; // בנות זוג רווקות מקבלות טיפ מימין
-  const showSpouseLeft = isMale && !isMarried && isAdult; // בני זוג רווקים מקבלים טיפ משמאל
+  const showParentTop = parentCount < 2;
+  const showSpouseRight = !isMale && !isMarried && isAdult;
+  const showSpouseLeft = isMale && !isMarried && isAdult;
 
   return (
     <div className={containerClasses} dir="ltr" onClick={handleOpenCard}>
       {/* Family Identity Tag */}
       {familyColor && (
-        <div 
+        <div
           className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl z-10"
           style={{ backgroundColor: familyColor }}
         />
@@ -120,12 +117,12 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
         משמשות למשיכת הקווים לנקודות הנכונות סביב הכרטיסייה (כמו ענפים) בלי להציג עיגול מכוער למשתמש 
       */}
       <Handle type="source" position={Position.Top} id="top-source" className="opacity-0" />
-      <Handle type="target" position={Position.Top} id="top-target" className="opacity-0" />
+      <Handle type="target" position={Position.Top} id="top-target" className="opacity-0 w-8 h-4" style={{ top: -4 }} />
       <Handle type="source" position={Position.Bottom} id="bottom-source" className="opacity-0" />
       <Handle type="source" position={Position.Left} id="left-out" className="opacity-0" />
-      <Handle type="target" position={Position.Left} id="left-in" className="opacity-0" />
+      <Handle type="target" position={Position.Left} id="left-in" className="opacity-0 w-4 h-8" style={{ left: -4 }} />
       <Handle type="source" position={Position.Right} id="right-out" className="opacity-0" />
-      <Handle type="target" position={Position.Right} id="right-in" className="opacity-0" />
+      <Handle type="target" position={Position.Right} id="right-in" className="opacity-0 w-4 h-8" style={{ right: -4 }} />
 
       {/* כפתורי הוספה מהירים (Buds) להורים/בני זוג */}
       {showParentTop && (

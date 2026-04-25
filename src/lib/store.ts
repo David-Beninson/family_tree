@@ -24,7 +24,7 @@ function uid(prefix: string): string {
 
 export interface PersonFormData {
   fullName: string;
-  birthYear: number;
+  birthYear?: number;
   gender: 'male' | 'female' | 'other';
   isAlive: boolean;
   // Extended optional fields
@@ -83,9 +83,12 @@ interface FamilyState {
   openAddDrawer: (ctx: AddContext) => void;
   closeAddDrawer: () => void;
   addFamilyMember: (payload: AddFamilyMemberPayload) => void;
+  connectExistingNodes: (intent: 'spouse' | 'child_to_union', sourceId: string, targetId: string) => void;
 
   highlightedNodeId: string | null;
   setHighlightedNode: (id: string | null) => void;
+  pendingFocusNodeId: string | null;
+  setPendingFocusNodeId: (id: string | null) => void;
 }
 
 // --- Store --------------------------------------------------------------------
@@ -93,6 +96,8 @@ interface FamilyState {
 export const useFamilyStore = create<FamilyState>((set, get) => ({
   highlightedNodeId: null,
   setHighlightedNode: (id) => set({ highlightedNodeId: id }),
+  pendingFocusNodeId: null,
+  setPendingFocusNodeId: (id) => set({ pendingFocusNodeId: id }),
   nodes: initialGraph.nodes,
   edges: initialGraph.edges,
   persons: initialPersons,
@@ -196,11 +201,13 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     };
 
     if (!addContext) return;
+    
+    let primaryNewId: string | null = null;
 
     // --- Scenario: Add Partner ------------------------------------------------
     if (addContext.action === 'add_partner') {
       const sourceId = addContext.sourcePersonId;
-      const newId = resolvePerson(payload.primary);
+      primaryNewId = resolvePerson(payload.primary);
       
       // Look for an existing union that has exactly 1 partner (the sourceId)
       const existingLinks = newLinks.filter(l => l.personId === sourceId && l.role === 'partner');
@@ -211,7 +218,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
 
       if (singleParentUnionLink) {
           // If the person has a 1-partner union (created from adding a single parent), add the new spouse to it
-          newLinks.push({ id: uid('link'), personId: newId, unionId: singleParentUnionLink.unionId, role: 'partner' });
+          newLinks.push({ id: uid('link'), personId: primaryNewId, unionId: singleParentUnionLink.unionId, role: 'partner' });
       } else {
           // Normal case: Create a new union for the marriage
           const newUnion: Union = {
@@ -221,20 +228,20 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
           };
           newUnions.push(newUnion);
           newLinks.push({ id: uid('link'), personId: sourceId, unionId: newUnion.id, role: 'partner' });
-          newLinks.push({ id: uid('link'), personId: newId, unionId: newUnion.id, role: 'partner' });
+          newLinks.push({ id: uid('link'), personId: primaryNewId, unionId: newUnion.id, role: 'partner' });
       }
     }
 
     // --- Scenario: Add Child --------------------------------------------------
     else if (addContext.action === 'add_child') {
-      const newId = resolvePerson(payload.primary);
-      newLinks.push({ id: uid('link'), personId: newId, unionId: addContext.sourceUnionId, role: 'child' });
+      primaryNewId = resolvePerson(payload.primary);
+      newLinks.push({ id: uid('link'), personId: primaryNewId, unionId: addContext.sourceUnionId, role: 'child' });
     }
 
     // --- Scenario: Add Parent(s) ----------------------------------------------
     else if (addContext.action === 'add_parent') {
       const childId = addContext.sourcePersonId;
-      const parent1Id = resolvePerson(payload.primary);
+      primaryNewId = resolvePerson(payload.primary);
 
       // Create a union even if there is only one known parent
       const newUnion: Union = {
@@ -243,7 +250,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
         ...(payload.unionMarriageYear && { marriageYear: payload.unionMarriageYear }),
       };
       newUnions.push(newUnion);
-      newLinks.push({ id: uid('link'), personId: parent1Id, unionId: newUnion.id, role: 'partner' });
+      newLinks.push({ id: uid('link'), personId: primaryNewId, unionId: newUnion.id, role: 'partner' });
 
       // Process the second parent if provided
       if (payload.secondParent && (payload.secondParent.existingPersonId || payload.secondParent.fullName.trim())) {
@@ -257,12 +264,65 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
 
     // --- Scenario: Add Root Node ----------------------------------------------
     else if (addContext.action === 'add_root') {
-      resolvePerson(payload.primary);
+      primaryNewId = resolvePerson(payload.primary);
       // The person floats independently without any links or unions
     }
 
     set({ persons: newPersons, unions: newUnions, links: newLinks });
     get().rebuildGraph();
     get().closeAddDrawer();
+    
+    if (primaryNewId) {
+      setTimeout(() => get().setPendingFocusNodeId(primaryNewId!), 100);
+    }
+  },
+
+  connectExistingNodes: (intent, sourceId, targetId) => {
+    const { unions, links } = get();
+    let newUnions = [...unions];
+    let newLinks = [...links];
+
+    if (intent === 'spouse') {
+      // Check if they are already connected
+      const alreadyConnected = newLinks.some(l1 => 
+        l1.personId === sourceId && l1.role === 'partner' &&
+        newLinks.some(l2 => l2.personId === targetId && l2.role === 'partner' && l2.unionId === l1.unionId)
+      );
+      if (alreadyConnected) return;
+
+      // Look for a single parent union on either side
+      const sourceExistingLinks = newLinks.filter(l => l.personId === sourceId && l.role === 'partner');
+      const targetExistingLinks = newLinks.filter(l => l.personId === targetId && l.role === 'partner');
+      
+      let singleParentUnionLink = sourceExistingLinks.find(l => 
+        newLinks.filter(ul => ul.unionId === l.unionId && ul.role === 'partner').length === 1
+      );
+      
+      // If source doesn't have one, check if target has one
+      if (!singleParentUnionLink) {
+        singleParentUnionLink = targetExistingLinks.find(l => 
+          newLinks.filter(ul => ul.unionId === l.unionId && ul.role === 'partner').length === 1
+        );
+      }
+
+      if (singleParentUnionLink) {
+        const unionId = singleParentUnionLink.unionId;
+        const personToAdd = singleParentUnionLink.personId === sourceId ? targetId : sourceId;
+        newLinks.push({ id: uid('link'), personId: personToAdd, unionId, role: 'partner' });
+      } else {
+        const newUnion: Union = { id: uid('union'), status: 'married' };
+        newUnions.push(newUnion);
+        newLinks.push({ id: uid('link'), personId: sourceId, unionId: newUnion.id, role: 'partner' });
+        newLinks.push({ id: uid('link'), personId: targetId, unionId: newUnion.id, role: 'partner' });
+      }
+    } else if (intent === 'child_to_union') {
+      const alreadyConnected = newLinks.some(l => l.personId === sourceId && l.unionId === targetId && l.role === 'child');
+      if (!alreadyConnected) {
+        newLinks.push({ id: uid('link'), personId: sourceId, unionId: targetId, role: 'child' });
+      }
+    }
+
+    set({ unions: newUnions, links: newLinks });
+    get().rebuildGraph();
   },
 }));

@@ -12,14 +12,18 @@ export const SPACING = {
 
 export const FAMILY_COLORS = [
     '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
-    '#8b5cf6', '#ec4899', '#6fff00ff', '#f97316'
+    '#8b5cf6', '#ec4899', '#6fff00ff', '#f97316',
+    '#06b6d4', '#14b8a6', '#84cc16', '#6366f1',
+    '#d946ef', '#f43f5e', '#0ea5e9', '#eab308',
+    '#a855f7', '#1d4ed8', '#047857', '#be123c',
+    '#fb923c', '#4ade80'
 ];
 
 export const calculateHubPosition = (p1Pos: { x: number, y: number }, p2Pos: { x: number, y: number }, status: Union['status'], hasChildren: boolean) => {
     const centerX = (p1Pos.x + p2Pos.x) / 2 + (SPACING.CARD_WIDTH / 2);
     let centerY = p1Pos.y + (SPACING.CARD_HEIGHT / 2);
     if (status === 'divorced' && hasChildren) {
-        centerY = Math.max(p1Pos.y, p2Pos.y) + SPACING.CARD_HEIGHT + 35;
+        centerY = Math.max(p1Pos.y, p2Pos.y) + SPACING.CARD_HEIGHT + 100;
     }
     return { x: centerX, y: centerY };
 };
@@ -108,8 +112,8 @@ export function buildGraphLayout(
         id: string;
         type: 'person' | 'union';
         children: PlacementNode[];
-        spouses?: string[]; 
-        relativeX: number; 
+        spouses?: string[];
+        relativeX: number;
         isPoly?: boolean;
         isLeftAligned?: boolean;
     }
@@ -136,7 +140,7 @@ export function buildGraphLayout(
             const comp: string[] = [];
             const q = [p.id];
             visitedForBlock.add(p.id);
-            while(q.length > 0) {
+            while (q.length > 0) {
                 const curr = q.shift()!;
                 comp.push(curr);
                 partnerAdj.get(curr)!.forEach(n => {
@@ -146,7 +150,7 @@ export function buildGraphLayout(
                     }
                 });
             }
-            
+
             let hub = comp[0];
             let maxU = getPartnerLinks(hub).length;
             comp.forEach(id => {
@@ -158,7 +162,7 @@ export function buildGraphLayout(
                     if (getParentUnion(id) && !getParentUnion(hub)) hub = id;
                 }
             });
-            
+
             comp.forEach(id => marriageBlocks.set(id, hub));
         }
     });
@@ -170,33 +174,33 @@ export function buildGraphLayout(
         const hubId = marriageBlocks.get(pId) || pId;
         if (visitedPersons.has(hubId)) return { id: pId, type: 'person', children: [], relativeX: 0 };
         visitedPersons.add(hubId);
-        
+
         const node: PlacementNode = { id: hubId, type: 'person', children: [], relativeX: 0 };
-        
+
         const myUnions = getPartnerLinks(hubId).map(l => l.unionId).sort();
         const poly = myUnions.length >= 3;
         const double = myUnions.length === 2;
-        
+
         myUnions.forEach((uId, idx) => {
             if (!visitedUnions.has(uId)) {
                 visitedUnions.add(uId);
                 const partners = getUnionPartners(uId);
                 const spouses = partners.filter(p => p !== hubId);
-                spouses.forEach(s => visitedPersons.add(s)); 
-                
+                spouses.forEach(s => visitedPersons.add(s));
+
                 const uNode: PlacementNode = { id: uId, type: 'union', children: [], spouses, relativeX: 0, isPoly: poly };
                 if (double) uNode.isLeftAligned = (idx === 0);
-                
+
                 placementNodesMap.set(uId, uNode);
-                
-                const children = getUnionChildren(uId).sort((a,b) => (a.birthYear || 0) - (b.birthYear || 0));
+
+                const children = getUnionChildren(uId).sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0));
                 children.forEach(c => {
                     const childHub = marriageBlocks.get(c.id) || c.id;
                     if (!visitedPersons.has(childHub)) {
                         uNode.children.push(buildTree(childHub));
                     }
                 });
-                
+
                 node.children.push(uNode);
             }
         });
@@ -204,7 +208,7 @@ export function buildGraphLayout(
     };
 
     const placementRoots: PlacementNode[] = [];
-    roots.sort((a,b) => (a.birthYear || 0) - (b.birthYear || 0)).forEach(r => {
+    roots.sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0)).forEach(r => {
         const hubId = marriageBlocks.get(r.id) || r.id;
         if (!visitedPersons.has(hubId)) {
             placementRoots.push(buildTree(hubId));
@@ -548,7 +552,7 @@ export function buildGraphLayout(
                     type: 'familyEdge',
                     sourceHandle: 'bottom-source',
                     targetHandle: 'top-target',
-                    data: { color, routing: 'smoothstep' },
+                    data: { color, routing: 'straight' },
                     style: { stroke: color, strokeWidth: 3, strokeDasharray: '5,5' }
                 });
             } else {

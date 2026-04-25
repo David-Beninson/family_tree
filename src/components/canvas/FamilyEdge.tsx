@@ -21,18 +21,20 @@ export default function FamilyEdge({
 
   const isStraight = data?.routing === 'straight';
 
-  const [edgePath] = isStraight 
+  const safeCenterY = targetY - 35;
+
+  const [edgePath] = isStraight
     ? getStraightPath({ sourceX, sourceY, targetX, targetY })
     : getSmoothStepPath({
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-        sourcePosition,
-        targetPosition,
-        borderRadius: 20,
-        offset: 40, // Increased offset for a deeper vertical drop
-      });
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      sourcePosition,
+      targetPosition,
+      borderRadius: 20,
+      centerY: safeCenterY,
+    });
 
   const edgeColor = data?.color || '#94a3b8';
 
