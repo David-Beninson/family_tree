@@ -4,8 +4,8 @@ import { Person, Union, PersonUnionLink } from './types';
 export const SPACING = {
     CARD_WIDTH: 280,
     CARD_HEIGHT: 90,
-    MIN_NODE_GAP: 40,
-    SIBLING_GAP: 60,
+    MIN_NODE_GAP: 20,
+    SIBLING_GAP: 40,
     LEVEL_Y: 280,
     ROOT_Y_START: 0,
 };
@@ -43,9 +43,41 @@ export function buildGraphLayout(
 
     const getPartnerLinks = (pId: string) => links.filter(l => l.personId === pId && l.role === 'partner');
     const getUnionPartners = (uId: string) => links.filter(l => l.unionId === uId && l.role === 'partner').map(l => l.personId);
-    const getUnionChildren = (uId: string) => links.filter(l => l.unionId === uId && l.role === 'child').map(l => persons.find(p => p.id === l.personId)).filter(Boolean) as Person[];
+    const getUnionChildren = (uId: string) => links.filter(l => l.unionId === uId && l.role === 'child').map(l => persons.find(p => p.id === l.personId)).filter(Boolean).sort((a, b) => (a!.birthYear ?? Infinity) - (b!.birthYear ?? Infinity)) as Person[];
     const getParentUnion = (pId: string) => links.find(l => l.personId === pId && l.role === 'child')?.unionId;
     const isPolyParent = (pId: string) => getPartnerLinks(pId).length >= 3;
+
+    const calculatePersonWidth = (pId: string, visited: Set<string>): number => {
+        const myUnions = getPartnerLinks(pId).map(l => l.unionId).filter(uId => !visited.has(uId));
+        if (myUnions.length === 0) return SPACING.CARD_WIDTH;
+
+        let totalUnionsWidth = 0;
+        myUnions.forEach((uId, idx) => {
+            totalUnionsWidth += calculateUnionWidth(uId, visited);
+            if (idx < myUnions.length - 1) totalUnionsWidth += SPACING.SIBLING_GAP;
+        });
+
+        return Math.max(SPACING.CARD_WIDTH, totalUnionsWidth);
+    };
+
+    const calculateUnionWidth = (uId: string, visited: Set<string> = new Set()): number => {
+        if (visited.has(uId)) return 0;
+        visited.add(uId);
+
+        const partners = getUnionPartners(uId);
+        const parentsWidth = partners.length * SPACING.CARD_WIDTH + Math.max(0, partners.length - 1) * SPACING.MIN_NODE_GAP;
+
+        const children = getUnionChildren(uId);
+        if (children.length === 0) return parentsWidth;
+
+        let childrenTotalWidth = 0;
+        children.forEach((child, idx) => {
+            childrenTotalWidth += calculatePersonWidth(child.id, visited);
+            if (idx < children.length - 1) childrenTotalWidth += SPACING.SIBLING_GAP;
+        });
+
+        return Math.max(parentsWidth, childrenTotalWidth);
+    };
 
     // --- PASS 1: Strict Generation Assignment (Y-Axis) ---
     const genLevels: Record<string, number> = {};
@@ -57,6 +89,7 @@ export function buildGraphLayout(
         changed = false;
         iterations++;
 
+        // חישוב דורות לילדים - בדיוק דור אחד מתחת להורה המבוגר ביותר (או מתחת לבני הזוג ב-Poly)
         links.filter(l => l.role === 'child').forEach(l => {
             const uId = l.unionId;
             const partners = getUnionPartners(uId);
@@ -64,7 +97,7 @@ export function buildGraphLayout(
                 const polyPartner = partners.find(p => isPolyParent(p));
                 let maxParentGen = Math.max(...partners.map(pId => genLevels[pId] || 0));
 
-                // If it's a poly union, the spouses are at polyGen + 1. The children drop below the spouses.
+                // במקרה של ריבוי בני זוג, הילדים יורדים דור אחד מתחת לבני הזוג (שהם כבר דור מתחת ל-PolyParent)
                 if (polyPartner) {
                     maxParentGen = (genLevels[polyPartner] || 0) + 1;
                 }
@@ -76,6 +109,7 @@ export function buildGraphLayout(
             }
         });
 
+        // הצמדת בני זוג לאותו דור (פרט למקרה של Poly שבו בני הזוג יורדים קומה)
         unions.forEach(u => {
             const partners = getUnionPartners(u.id);
             if (partners.length > 1) {
@@ -100,6 +134,7 @@ export function buildGraphLayout(
             }
         });
     }
+
 
     const genY = (pId: string) => genLevels[pId] * SPACING.LEVEL_Y;
     const unionY = (uId: string): number => {
@@ -193,7 +228,7 @@ export function buildGraphLayout(
 
                 placementNodesMap.set(uId, uNode);
 
-                const children = getUnionChildren(uId).sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0));
+                const children = getUnionChildren(uId);
                 children.forEach(c => {
                     const childHub = marriageBlocks.get(c.id) || c.id;
                     if (!visitedPersons.has(childHub)) {
@@ -245,6 +280,11 @@ export function buildGraphLayout(
         });
         return maxShift;
     };
+
+    const unionWidths = new Map<string, number>();
+    unions.forEach(u => unionWidths.set(u.id, calculateUnionWidth(u.id, new Set())));
+    const personWidths = new Map<string, number>();
+    persons.forEach(p => personWidths.set(p.id, calculatePersonWidth(p.id, new Set())));
 
     const placeTree = (node: PlacementNode): { contour: Contour } => {
         if (node.type === 'person') {
@@ -321,10 +361,11 @@ export function buildGraphLayout(
                 let currentUnionX = SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP;
                 node.children.forEach(uNode => {
                     const res = placeTree(uNode);
+                    const uWidth = unionWidths.get(uNode.id) || 0;
                     const shift = Math.max(currentUnionX, getShift(overallContour, res.contour));
                     uNode.relativeX = shift;
                     overallContour = mergeContours(overallContour, res.contour, shift);
-                    currentUnionX = shift + (uNode.spouses?.length || 0) * (SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP) + 20 + SPACING.SIBLING_GAP;
+                    currentUnionX = shift + uWidth + SPACING.SIBLING_GAP;
                 });
                 return { contour: overallContour };
             }
@@ -352,10 +393,11 @@ export function buildGraphLayout(
             let childX = 0;
             node.children.forEach(cNode => {
                 const res = placeTree(cNode);
+                const pWidth = personWidths.get(cNode.id) || 0;
                 const shift = Math.max(childX, getShift(childrenContour, res.contour));
                 cNode.relativeX = shift;
                 childrenContour = mergeContours(childrenContour, res.contour, shift);
-                childX = shift + SPACING.SIBLING_GAP;
+                childX = shift + pWidth + SPACING.SIBLING_GAP;
             });
 
             const childrenMinX = Math.min(...Object.keys(childrenContour).map(y => childrenContour[Number(y)].left));
@@ -388,7 +430,9 @@ export function buildGraphLayout(
     // --- PASS 4: Absolute Coordinates Extraction ---
     const assignAbsolute = (node: PlacementNode, absoluteX: number) => {
         if (node.type === 'person') {
-            positions.set(node.id, { x: absoluteX, y: genY(node.id) });
+            const isPoly = getPartnerLinks(node.id).length >= 3;
+            const yOffset = isPoly ? -SPACING.LEVEL_Y * 0.5 : 0;
+            positions.set(node.id, { x: absoluteX, y: genY(node.id) + yOffset });
             node.children.forEach(uNode => assignAbsolute(uNode, absoluteX + uNode.relativeX));
         } else {
             const u = unions.find(un => un.id === node.id);
@@ -401,25 +445,32 @@ export function buildGraphLayout(
                     positions.set(sId, { x: spouseX, y: genLevels[sId] * SPACING.LEVEL_Y });
                     spouseX += SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP;
                 });
-            } else if (node.isLeftAligned) {
-                let hY = unionY(node.id) + SPACING.CARD_HEIGHT / 2 - 10;
-                if (isDivorced && hasChildren) hY += SPACING.CARD_HEIGHT + 35;
-                hubPositions.set(node.id, { x: absoluteX, y: hY });
-
-                let spouseX = absoluteX - SPACING.MIN_NODE_GAP - SPACING.CARD_WIDTH;
-                [...(node.spouses || [])].reverse().forEach(sId => {
-                    positions.set(sId, { x: spouseX, y: genLevels[sId] * SPACING.LEVEL_Y });
-                    spouseX -= SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP;
-                });
             } else {
+                const uNode = placementNodesMap.get(node.id);
+                const isLeftAligned = uNode?.isLeftAligned;
+                
+                const hubX = absoluteX;
+                const hubCenterX = hubX + 10;
+                const partners = getUnionPartners(node.id);
                 let hY = unionY(node.id) + SPACING.CARD_HEIGHT / 2 - 10;
                 if (isDivorced && hasChildren) hY += SPACING.CARD_HEIGHT + 35;
-                hubPositions.set(node.id, { x: absoluteX, y: hY });
+                hubPositions.set(node.id, { x: hubX, y: hY });
 
-                let spouseX = absoluteX + 20 + SPACING.MIN_NODE_GAP;
+                const offset = (SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP) / 2;
+                const parent1Id = partners.find(pId => !node.spouses?.includes(pId));
+                
+                if (parent1Id) {
+                    const p1X = isLeftAligned 
+                        ? hubCenterX + offset - (SPACING.CARD_WIDTH / 2)
+                        : hubCenterX - offset - (SPACING.CARD_WIDTH / 2);
+                    positions.set(parent1Id, { x: p1X, y: genLevels[parent1Id] * SPACING.LEVEL_Y });
+                }
+
                 node.spouses?.forEach(sId => {
-                    positions.set(sId, { x: spouseX, y: genLevels[sId] * SPACING.LEVEL_Y });
-                    spouseX += SPACING.CARD_WIDTH + SPACING.MIN_NODE_GAP;
+                    const sX = isLeftAligned
+                        ? hubCenterX - offset - (SPACING.CARD_WIDTH / 2)
+                        : hubCenterX + offset - (SPACING.CARD_WIDTH / 2);
+                    positions.set(sId, { x: sX, y: genLevels[sId] * SPACING.LEVEL_Y });
                 });
             }
 
@@ -498,14 +549,14 @@ export function buildGraphLayout(
         const isDivorced = u.status === 'divorced';
 
         if (uNode?.isPoly) {
-            // Edge from PolyParent to Wives
-            const husbandId = Object.keys(genLevels).find(id => getPartnerLinks(id).map(l => l.unionId).includes(u.id) && !uNode.spouses?.includes(id));
-            if (husbandId) {
-                uNode.spouses?.forEach(wifeId => {
+            // Edge from PolyParent to Spouses
+            const polyParentId = Object.keys(genLevels).find(id => getPartnerLinks(id).map(l => l.unionId).includes(u.id) && !uNode.spouses?.includes(id));
+            if (polyParentId) {
+                uNode.spouses?.forEach(spouseId => {
                     rfEdges.push({
-                        id: `edge-${husbandId}-${wifeId}`,
-                        source: husbandId,
-                        target: wifeId,
+                        id: `edge-${polyParentId}-${spouseId}`,
+                        source: polyParentId,
+                        target: spouseId,
                         type: 'familyEdge',
                         sourceHandle: 'bottom-source',
                         targetHandle: 'top-target',
@@ -514,12 +565,12 @@ export function buildGraphLayout(
                     });
                 });
             }
-            // Edge from Wives directly to Children
+            // Edge from Spouses directly to Children
             getUnionChildren(u.id).forEach(c => {
-                uNode.spouses?.forEach(wifeId => {
+                uNode.spouses?.forEach(spouseId => {
                     rfEdges.push({
-                        id: `edge-${wifeId}-${c.id}`,
-                        source: wifeId,
+                        id: `edge-${spouseId}-${c.id}`,
+                        source: spouseId,
                         target: c.id,
                         type: 'familyEdge',
                         sourceHandle: 'bottom-source',
@@ -544,29 +595,16 @@ export function buildGraphLayout(
 
             const isLeft = (pPos.x + SPACING.CARD_WIDTH / 2) < hubCenterX;
 
-            if (isDivorced) {
-                rfEdges.push({
-                    id: `edge-${pId}-${u.id}`,
-                    source: pId,
-                    target: `union-hub-${u.id}`,
-                    type: 'familyEdge',
-                    sourceHandle: 'bottom-source',
-                    targetHandle: 'top-target',
-                    data: { color, routing: 'straight' },
-                    style: { stroke: color, strokeWidth: 3, strokeDasharray: '5,5' }
-                });
-            } else {
-                rfEdges.push({
-                    id: `edge-${pId}-${u.id}`,
-                    source: pId,
-                    target: `union-hub-${u.id}`,
-                    type: 'familyEdge',
-                    sourceHandle: isLeft ? 'right-out' : 'left-out',
-                    targetHandle: isLeft ? 'left-target' : 'right-target',
-                    data: { color, routing: 'straight' },
-                    style: { stroke: color, strokeWidth: 3 }
-                });
-            }
+            rfEdges.push({
+                id: `edge-${pId}-${u.id}`,
+                source: pId,
+                target: `union-hub-${u.id}`,
+                type: 'familyEdge',
+                sourceHandle: isDivorced ? 'bottom-source' : (isLeft ? 'right-out' : 'left-out'),
+                targetHandle: isDivorced ? 'top-target' : (isLeft ? 'left-target' : 'right-target'),
+                data: { color, routing: isDivorced ? 'smoothstep' : 'straight' },
+                style: { stroke: color, strokeWidth: 3, strokeDasharray: isDivorced ? '5,5' : 'none' }
+            });
         });
 
         children.forEach(c => {

@@ -201,34 +201,34 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     };
 
     if (!addContext) return;
-    
+
     let primaryNewId: string | null = null;
 
     // --- Scenario: Add Partner ------------------------------------------------
     if (addContext.action === 'add_partner') {
       const sourceId = addContext.sourcePersonId;
       primaryNewId = resolvePerson(payload.primary);
-      
+
       // Look for an existing union that has exactly 1 partner (the sourceId)
       const existingLinks = newLinks.filter(l => l.personId === sourceId && l.role === 'partner');
       const singleParentUnionLink = existingLinks.find(l => {
-          const unionPartners = newLinks.filter(ul => ul.unionId === l.unionId && ul.role === 'partner');
-          return unionPartners.length === 1;
+        const unionPartners = newLinks.filter(ul => ul.unionId === l.unionId && ul.role === 'partner');
+        return unionPartners.length === 1;
       });
 
       if (singleParentUnionLink) {
-          // If the person has a 1-partner union (created from adding a single parent), add the new spouse to it
-          newLinks.push({ id: uid('link'), personId: primaryNewId, unionId: singleParentUnionLink.unionId, role: 'partner' });
+        // If the person has a 1-partner union (created from adding a single parent), add the new spouse to it
+        newLinks.push({ id: uid('link'), personId: primaryNewId, unionId: singleParentUnionLink.unionId, role: 'partner' });
       } else {
-          // Normal case: Create a new union for the marriage
-          const newUnion: Union = {
-            id: uid('union'),
-            status: payload.unionStatus ?? 'married',
-            ...(payload.unionMarriageYear && { marriageYear: payload.unionMarriageYear }),
-          };
-          newUnions.push(newUnion);
-          newLinks.push({ id: uid('link'), personId: sourceId, unionId: newUnion.id, role: 'partner' });
-          newLinks.push({ id: uid('link'), personId: primaryNewId, unionId: newUnion.id, role: 'partner' });
+        // Normal case: Create a new union for the marriage
+        const newUnion: Union = {
+          id: uid('union'),
+          status: payload.unionStatus ?? 'married',
+          ...(payload.unionMarriageYear && { marriageYear: payload.unionMarriageYear }),
+        };
+        newUnions.push(newUnion);
+        newLinks.push({ id: uid('link'), personId: sourceId, unionId: newUnion.id, role: 'partner' });
+        newLinks.push({ id: uid('link'), personId: primaryNewId, unionId: newUnion.id, role: 'partner' });
       }
     }
 
@@ -271,7 +271,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     set({ persons: newPersons, unions: newUnions, links: newLinks });
     get().rebuildGraph();
     get().closeAddDrawer();
-    
+
     if (primaryNewId) {
       setTimeout(() => get().setPendingFocusNodeId(primaryNewId!), 100);
     }
@@ -284,7 +284,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
 
     if (intent === 'spouse') {
       // Check if they are already connected
-      const alreadyConnected = newLinks.some(l1 => 
+      const alreadyConnected = newLinks.some(l1 =>
         l1.personId === sourceId && l1.role === 'partner' &&
         newLinks.some(l2 => l2.personId === targetId && l2.role === 'partner' && l2.unionId === l1.unionId)
       );
@@ -293,14 +293,14 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       // Look for a single parent union on either side
       const sourceExistingLinks = newLinks.filter(l => l.personId === sourceId && l.role === 'partner');
       const targetExistingLinks = newLinks.filter(l => l.personId === targetId && l.role === 'partner');
-      
-      let singleParentUnionLink = sourceExistingLinks.find(l => 
+
+      let singleParentUnionLink = sourceExistingLinks.find(l =>
         newLinks.filter(ul => ul.unionId === l.unionId && ul.role === 'partner').length === 1
       );
-      
+
       // If source doesn't have one, check if target has one
       if (!singleParentUnionLink) {
-        singleParentUnionLink = targetExistingLinks.find(l => 
+        singleParentUnionLink = targetExistingLinks.find(l =>
           newLinks.filter(ul => ul.unionId === l.unionId && ul.role === 'partner').length === 1
         );
       }
