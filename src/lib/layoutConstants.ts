@@ -1,7 +1,7 @@
 export const SPACING = {
     CARD_WIDTH: 280,
     CARD_HEIGHT: 90,
-    MIN_NODE_GAP: 20,
+    MIN_NODE_GAP: 60,
     SIBLING_GAP: 40,
     LEVEL_Y: 280,
     ROOT_Y_START: 0,

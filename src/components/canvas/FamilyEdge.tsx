@@ -1,8 +1,9 @@
-import { BaseEdge, EdgeProps, getStraightPath, getSmoothStepPath, Edge } from '@xyflow/react';
+import { BaseEdge, EdgeProps, getSmoothStepPath, Edge } from '@xyflow/react';
 
 export type FamilyEdgeData = {
   color?: string;
-  routing?: 'straight' | 'smoothstep';
+  routing?: 'straight' | 'smoothstep' | 'vertical';
+  isDivorced?: boolean;
 };
 
 export type FamilyEdgeType = Edge<FamilyEdgeData, 'familyEdge'>;
@@ -19,24 +20,40 @@ export default function FamilyEdge({
   data,
 }: EdgeProps<FamilyEdgeType>) {
 
-  const isStraight = data?.routing === 'straight';
+  let edgePath = '';
+  const edgeColor = data?.color || '#94a3b8';
+  const isDivorced = data?.isDivorced;
 
-  const safeCenterY = targetY - 35;
-
-  const [edgePath] = isStraight
-    ? getStraightPath({ sourceX, sourceY, targetX, targetY })
-    : getSmoothStepPath({
+  if (data?.routing === 'vertical') {
+    edgePath = `M ${sourceX} ${sourceY} L ${sourceX} ${targetY} L ${targetX} ${targetY}`;
+  } else if (data?.routing === 'straight') {
+    if (isDivorced) {
+      const dropHeight = 40;
+      const bottomY = Math.max(sourceY, targetY) + dropHeight;
+      edgePath = `M ${sourceX} ${sourceY} 
+                  L ${sourceX} ${bottomY} 
+                  L ${targetX} ${bottomY} 
+                  L ${targetX} ${targetY}`;
+    } else {
+      edgePath = `M ${sourceX} ${sourceY} L ${targetX} ${sourceY} L ${targetX} ${targetY}`;
+    }
+  } else if (data?.routing === 'smoothstep') {
+    const midY = (sourceY + targetY) / 2;
+    edgePath = `M ${sourceX} ${sourceY} 
+                L ${sourceX} ${midY} 
+                L ${targetX} ${midY} 
+                L ${targetX} ${targetY}`;
+  } else {
+    [edgePath] = getSmoothStepPath({
       sourceX,
       sourceY,
       targetX,
       targetY,
       sourcePosition,
       targetPosition,
-      borderRadius: 20,
-      centerY: safeCenterY,
+      borderRadius: 16,
     });
-
-  const edgeColor = data?.color || '#94a3b8';
+  }
 
   return (
     <BaseEdge
@@ -45,7 +62,8 @@ export default function FamilyEdge({
       style={{
         strokeWidth: 3,
         stroke: edgeColor,
-        transition: 'stroke 0.3s ease',
+        strokeDasharray: isDivorced ? '8, 8' : 'none',
+        transition: 'all 0.3s ease',
         ...style,
       }}
     />

@@ -10,12 +10,12 @@ import {
   applyEdgeChanges
 } from '@xyflow/react';
 import { Person, Union, PersonUnionLink, AddContext, AddFamilyMemberPayload } from './types';
-import { initialPersons, initialUnions, initialLinks } from './mockData';
+import { mockPersons, mockUnions, mockLinks } from './mockData';
 import { buildGraphLayout } from './layoutEngine';
 import { executeAddFamilyMember, executeConnectNodes } from './familyActions';
-import { calculateHubPosition } from './layoutHelpers';
+import { getFamilyNetwork } from './graphFilters';
 
-const initialGraph = buildGraphLayout(initialPersons, initialUnions, initialLinks);
+const initialGraph = buildGraphLayout(mockPersons, mockUnions, mockLinks);
 
 interface FamilyState {
   nodes: Node[];
@@ -24,6 +24,8 @@ interface FamilyState {
   unions: Union[];
   links: PersonUnionLink[];
   focusUnionId: string | undefined;
+  focusPersonId: string | undefined;
+  setFocusPersonId: (id: string) => void;
   addDrawerOpen: boolean;
   addContext: AddContext | null;
   highlightedNodeId: string | null;
@@ -52,52 +54,41 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
   setPendingFocusNodeId: (id) => set({ pendingFocusNodeId: id }),
   nodes: initialGraph.nodes,
   edges: initialGraph.edges,
-  persons: initialPersons,
-  unions: initialUnions,
-  links: initialLinks,
+  persons: mockPersons,
+  unions: mockUnions,
+  links: mockLinks,
   focusUnionId: undefined,
+  focusPersonId: mockPersons.length > 0 ? mockPersons[0].id : undefined,
+  setFocusPersonId: (id) => {
+    set({ focusPersonId: id });
+    get().rebuildGraph();
+  },
   addDrawerOpen: false,
   addContext: null,
 
   onNodesChange: (changes) => {
     set({ nodes: applyNodeChanges(changes, get().nodes) });
-    const { nodes, unions, links } = get();
-    let updatedNodes = [...nodes];
-    let changed = false;
-
-    unions.forEach(u => {
-      const partners = links.filter(l => l.unionId === u.id && l.role === 'partner').map(l => l.personId);
-      if (partners.length !== 2) return;
-
-      const p1Node = updatedNodes.find(n => n.id === partners[0]);
-      const p2Node = updatedNodes.find(n => n.id === partners[1]);
-      const hubIndex = updatedNodes.findIndex(n => n.id === `union-hub-${u.id}`);
-
-      if (p1Node && p2Node && hubIndex !== -1) {
-        const hasChildren = links.some(l => l.unionId === u.id && l.role === 'child');
-        const newHubPos = calculateHubPosition(p1Node.position, p2Node.position, u.status, hasChildren);
-
-        if (
-          Math.abs(updatedNodes[hubIndex].position.x - (newHubPos.x - 10)) > 0.5 ||
-          Math.abs(updatedNodes[hubIndex].position.y - (newHubPos.y - 10)) > 0.5
-        ) {
-          updatedNodes[hubIndex] = {
-            ...updatedNodes[hubIndex],
-            position: { x: newHubPos.x - 10, y: newHubPos.y - 10 }
-          };
-          changed = true;
-        }
-      }
-    });
-
-    if (changed) set({ nodes: updatedNodes });
   },
 
   onEdgesChange: (changes) => set({ edges: applyEdgeChanges(changes, get().edges) }),
 
   rebuildGraph: () => {
-    const { persons, unions, links, focusUnionId } = get();
-    const { nodes, edges } = buildGraphLayout(persons, unions, links, focusUnionId || undefined);
+    const { persons, unions, links, focusPersonId } = get();
+
+    let dataToRender: any = { persons, unions, links, roleMap: undefined };
+
+    if (focusPersonId) {
+      // כאן נוצר ה-roleMap שמגדיר מי ה-Focus ומי ה-Entry Point
+      dataToRender = getFamilyNetwork(focusPersonId, persons, unions, links);
+    }
+
+    const { nodes, edges } = buildGraphLayout(
+      dataToRender.persons,
+      dataToRender.unions,
+      dataToRender.links,
+      dataToRender.roleMap // <--- הוספה קריטית להצגת כפתורי הניווט
+    );
+
     set({ nodes, edges });
   },
 

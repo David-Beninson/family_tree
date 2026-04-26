@@ -9,19 +9,12 @@ const rubik = Rubik({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('http://localhost:3000'),
   title: 'אילן יוחסין | ניהול גנאלוגי מקצועי',
   description: 'מערכת מקצועית לניהול ותיעוד אילן יוחסין משפחתי',
-  icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
-  },
-  openGraph: {
-    images: ['/logo.png'],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    images: ['/logo.png'],
-  },
+  icons: { icon: '/logo.png', apple: '/logo.png' },
+  openGraph: { images: ['/logo.png'] },
+  twitter: { card: 'summary_large_image', images: ['/logo.png'] },
 };
 
 export default function RootLayout({

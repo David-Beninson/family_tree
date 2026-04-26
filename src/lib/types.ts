@@ -1,60 +1,59 @@
 import { Node } from '@xyflow/react';
 
+/**
+ * 1. ישות האדם (The Person Entity)
+ */
 export type Person = {
+  // --- מידע קריטי ללוגיקה ---
   id: string;
   fullName: string;
-  maidenName?: string;
-
-  // --- Dates and Locations ---
-  birthYear?: number;
-  birthDate?: string;
-  birthPlace?: string;
-
-  deathYear?: number;
-  deathDate?: string;
-  deathPlace?: string;
-  burialPlace?: string;
-
-  isAlive: boolean;
   gender: 'male' | 'female' | 'other';
+  isAlive: boolean;
+
+  /** * המשתנה ה"טריקי": רשימת מזהי השושלת שהאדם שייך אליהם.
+   * אם נרצה להציג את "עץ משפחת אברהם", לכל הצאצאים שלו יהיה 'avraham' במערך הזה.
+   */
+  bloodlineIds: string[];
+
+  // --- מידע גנאלוגי ---
+  maidenName?: string;
+  birthYear?: number;
+  deathYear?: number;
   photoUrl?: string;
 
-  // --- Contact Information (for living persons) ---
-  phoneNumber?: string;
-  email?: string;
-  address?: {
-    country?: string;
-    city?: string;
-    street?: string;
-  };
-
-  // --- Biography ---
-  occupation?: string;
-  bio?: string;
-
-  // --- Social Links ---
-  socialLinks?: {
-    facebook?: string;
-    instagram?: string;
-    linkedin?: string;
+  // --- מידע ביוגרפי וקישורים חברתיים ---
+  metadata?: {
+    birthPlace?: string;
+    occupation?: string;
+    bio?: string;
+    contact?: {
+      email?: string;
+      phone?: string;
+    };
+    // הוספת קישורים חברתיים לבקשתך
+    socialLinks?: {
+      facebook?: string;
+      whatsapp?: string; // יכול לשמש לשליחת הודעה ישירה
+      instagram?: string;
+      linkedin?: string;
+    };
   };
 };
 
+/**
+ * 2. איחוד/תא משפחתי (The Union)
+ */
 export type Union = {
   id: string;
   status: 'married' | 'divorced' | 'partnered' | 'separated';
   marriageYear?: number;
   divorceYear?: number;
+  isSprinkler?: boolean;
 };
 
-// --- Tree Contexts ---
-
-export type AddContext =
-  | { action: 'add_partner'; sourcePersonId: string }
-  | { action: 'add_child'; sourceUnionId: string }
-  | { action: 'add_parent'; sourcePersonId: string }
-  | { action: 'add_root' };
-
+/**
+ * 3. הקישור (The Link)
+ */
 export type PersonUnionLink = {
   id: string;
   personId: string;
@@ -62,50 +61,47 @@ export type PersonUnionLink = {
   role: 'partner' | 'child';
 };
 
+/**
+ * 4. טיפוסים של React Flow (Visual Nodes)
+ */
 export type FamilyMemberNode = Node<{
   person: Person;
-  isMarried?: boolean;
+  nodeRole: 'focus' | 'blood' | 'entry-point';
+
+  /**
+   * משתנה עזר לחישוב התצוגה: 
+   * האם האדם הוא חלק מהשושלת הישירה שנבחרה? (למשל צאצא ישיר של הסבא)
+   */
+  isDirectLineage: boolean;
+
+  familyColor?: string;
   parentCount?: number;
-  isOrphan?: boolean;
+  isMarried?: boolean;
 }, 'familyMember'>;
 
+/**
+ * 5. ניהול ה-Layout (מתמטיקה)
+ */
 export type BoundingBox = {
   width: number;
   leftX: number;
   rightX: number;
 };
 
-export type LayoutRegistry = {
-  persons: Record<string, { x: number; y: number }>;
-  unions: Record<string, { x: number; y: number }>;
-  boundingBoxes: Record<string, BoundingBox>;
-};
+/**
+ * 6. הקשר הוספה (UI Context)
+ */
+export type AddContext =
+  | { action: 'add_partner'; sourcePersonId: string }
+  | { action: 'add_child'; sourceUnionId: string }
+  | { action: 'add_parent'; sourcePersonId: string }
+  | { action: 'add_root' };
 
-export interface PersonFormData {
-  fullName: string;
-  birthYear?: number;
-  gender: 'male' | 'female' | 'other';
-  isAlive: boolean;
-  maidenName?: string;
-  birthDate?: string;
-  birthPlace?: string;
-  deathYear?: number;
-  deathDate?: string;
-  deathPlace?: string;
-  burialPlace?: string;
-  photoUrl?: string;
-  phoneNumber?: string;
-  email?: string;
-  address?: { country?: string; city?: string; street?: string };
-  occupation?: string;
-  bio?: string;
-  socialLinks?: { facebook?: string; instagram?: string; linkedin?: string };
-  existingPersonId?: string;
-}
-
+/**
+ * 7. טפסים והעברות נתונים (Payloads)
+ */
 export interface AddFamilyMemberPayload {
-  primary: PersonFormData;
+  primary: Partial<Person> & { fullName: string; gender: Person['gender'] };
   unionStatus?: Union['status'];
-  unionMarriageYear?: number;
-  secondParent?: PersonFormData;
+  secondParent?: Partial<Person>;
 }

@@ -12,11 +12,12 @@ export type FamilyMemberNode = Node<{
   isMarried?: boolean;
   parentCount?: number;
   familyColor?: string;
+  nodeRole?: 'focus' | 'blood' | 'entry-point';
 }, 'familyMember'>;
 
 export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
-  const { person, isMarried = false, parentCount = 0, familyColor } = data;
-  const { links, setFocusUnion, openAddDrawer, highlightedNodeId } = useFamilyStore();
+  const { person, isMarried = false, parentCount = 0, familyColor, nodeRole } = data;
+  const { links, setFocusUnion, openAddDrawer, highlightedNodeId, setFocusPersonId } = useFamilyStore();
   const router = useRouter();
 
   const isMale = person.gender === 'male';
@@ -84,6 +85,29 @@ export const FamilyNode = memo(({ id, data }: NodeProps<FamilyMemberNode>) => {
 
   return (
     <div className={containerClasses} dir="ltr" onClick={handleOpenCard}>
+      {/* קו "יתום" עולה למי שאין לו הורים במערכת */}
+      {parentCount === 0 && (
+        <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-0.5 h-6 bg-gradient-to-t from-slate-300 to-transparent pointer-events-none" />
+      )}
+
+      {/* כפתור פוקוס למעבר שושלת - מופיע רק עבור בני זוג שהם נקודות קצה */}
+      {nodeRole === 'entry-point' && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            const familyName = person.fullName.split(' ').pop() || '';
+            const confirmed = window.confirm(`לעבור לעץ של משפחת ${familyName}?`);
+            if (confirmed) {
+              setFocusPersonId(person.id);
+            }
+          }}
+          className="absolute -top-3 -right-3 w-8 h-8 bg-purple-600 hover:bg-purple-700 rounded-full text-white shadow-lg border-2 border-white flex items-center justify-center transition-transform hover:scale-110 z-50"
+          title={`לעבור למשפחת ${person.fullName}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+        </button>
+      )}
+
       {/* Family Identity Tag */}
       {familyColor && (
         <div
