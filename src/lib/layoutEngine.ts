@@ -24,25 +24,28 @@ export function buildGraphLayout(
     const positions = new Map<string, { x: number, y: number }>();
     const hubPositions = new Map<string, { x: number, y: number }>();
 
+    const boundingBoxes = new Map<string, number>();
+
     const getPartnerLinks = (pId: string) => _getPartnerLinks(pId, links);
     const getUnionPartners = (uId: string) => _getUnionPartners(uId, links);
     const getUnionChildren = (uId: string) => _getUnionChildren(uId, persons, links);
     const getParentUnion = (pId: string) => _getParentUnion(pId, links);
     const isPolyParent = (pId: string) => _isPolyParent(pId, links);
-    const calculatePersonWidth = (pId: string, visited: Set<string>) => _calculatePersonWidth(pId, visited, persons, links);
-    const calculateUnionWidth = (uId: string, visited: Set<string> = new Set()) => _calculateUnionWidth(uId, visited, persons, links);
+    const calculatePersonWidth = (pId: string, visited: Set<string>) => _calculatePersonWidth(pId, visited, boundingBoxes, persons, links);
+    const calculateUnionWidth = (uId: string, visited: Set<string> = new Set()) => _calculateUnionWidth(uId, visited, boundingBoxes, persons, links);
 
     // --- PASS 1: Strict Generation Assignment (Y-Axis) ---
     const genLevels: Record<string, number> = {};
-    persons.forEach(p => genLevels[p.id] = 0);
+    // אתחול דורות: דור מבוגר יקבל מספר נמוך, דורות צעירים יקבלו מספר הולך וגדל (השפעה ישירה על ה-Y)
+    persons.forEach(p => { genLevels[p.id] = 0; });
 
     let changed = true;
     let iterations = 0;
-    while (changed && iterations < 100) {
+    while (changed && iterations < 100) { // הגנה מפני לולאות אינסופיות (מעגלים משפחתיים)
         changed = false;
         iterations++;
 
-        // חישוב דורות לילדים - בדיוק דור אחד מתחת להורה המבוגר ביותר (או מתחת לבני הזוג ב-Poly)
+        // 1. אכיפת היררכיה: ילדים חייבים לקבל Y גדול יותר (דור צעיר יותר) מהוריהם
         links.filter(l => l.role === 'child').forEach(l => {
             const uId = l.unionId;
             const partners = getUnionPartners(uId);
@@ -50,7 +53,6 @@ export function buildGraphLayout(
                 const polyPartner = partners.find(p => isPolyParent(p));
                 let maxParentGen = Math.max(...partners.map(pId => genLevels[pId] || 0));
 
-                // במקרה של ריבוי בני זוג, הילדים יורדים דור אחד מתחת לבני הזוג (שהם כבר דור מתחת ל-PolyParent)
                 if (polyPartner) {
                     maxParentGen = (genLevels[polyPartner] || 0) + 1;
                 }
@@ -62,7 +64,7 @@ export function buildGraphLayout(
             }
         });
 
-        // הצמדת בני זוג לאותו דור (פרט למקרה של Poly שבו בני הזוג יורדים קומה)
+        // 2. סימטריה זוגית: בני זוג מקבלים את אותו Y (למעט שיטת הממטרה שתטופל בשלבי ה-Pivot)
         unions.forEach(u => {
             const partners = getUnionPartners(u.id);
             if (partners.length > 1) {
@@ -88,7 +90,7 @@ export function buildGraphLayout(
         });
     }
 
-
+    // פונקציות העזר להמרת "דור" לקואורדינטת Y על המסך
     const genY = (pId: string) => genLevels[pId] * SPACING.LEVEL_Y;
     const unionY = (uId: string): number => {
         const partners = getUnionPartners(uId);

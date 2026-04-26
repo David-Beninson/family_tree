@@ -40,7 +40,8 @@ export default function Home() {
     <main className="w-screen h-screen flex flex-col relative">
       <header className="absolute top-0 left-0 w-full p-6 flex justify-between items-center z-10 pointer-events-none">
         <div className="pointer-events-auto">
-          <h1 className="text-3xl font-serif font-bold tracking-tight text-wood-dark flex items-center gap-2">
+          <h1 className="text-3xl font-serif font-bold tracking-tight text-wood-dark flex items-center gap-3">
+            <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
             Family Roots <span className="text-accent-amber">.</span>
           </h1>
         </div>
